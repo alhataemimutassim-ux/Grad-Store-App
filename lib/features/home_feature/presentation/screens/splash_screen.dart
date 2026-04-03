@@ -1,0 +1,54 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:grad_store_app/core/theme/dimens.dart';
+import 'package:grad_store_app/core/theme/theme.dart';
+import 'package:grad_store_app/core/utils/app_navigator.dart';
+import 'package:grad_store_app/core/utils/check_device_size.dart';
+import 'package:grad_store_app/core/widgets/app_scaffold.dart';
+import 'package:grad_store_app/features/home_feature/presentation/widgets/login_a_page.dart';
+
+import '../../../../core/gen/assets.gen.dart';
+
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Timer(Duration(milliseconds: 1500), () {
+      appPushReplacement(context, LoginaPage());
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.theme.appColors;
+    return AppScaffold(
+      backgroundColor: colors.brownExtraLight,
+      padding: EdgeInsets.zero,
+      safeAreaTop: false,
+      body: SingleChildScrollView(
+        child: Column(
+          spacing: Dimens.largePadding,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Assets.images.splashHeader.image(),
+            Assets.images.logo.image(
+              width: checkVerySmallDeviceSize(context) ? 290 : 390,
+            ),
+            SizedBox(height: Dimens.largePadding),
+            Assets.images.cake.image(
+              width: checkVerySmallDeviceSize(context) ? 205 : 305,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
