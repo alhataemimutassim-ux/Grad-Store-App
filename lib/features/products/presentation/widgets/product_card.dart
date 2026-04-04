@@ -82,7 +82,8 @@ class _ProductCardState extends State<ProductCard> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(12)),
-                            child: Text('-${(product.discount * 100).toStringAsFixed(0)}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                            // discount قادم من السرفر كنسبة مئوية (10 = 10٪)
+                            child: Text('-${product.discount.toStringAsFixed(0)}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                           ),
                         ),
                     ],
@@ -136,11 +137,11 @@ class _ProductCardState extends State<ProductCard> {
                         const SizedBox(height: 8),
                         // prices
                         Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                          // current price (allow shrinking)
+                          // السعر بعد الخصم: discount من السرفر كنسبة مئوية
                           Flexible(
                             fit: FlexFit.loose,
                             child: Text(
-                              '${(product.discount > 0 ? (product.price * (1 - product.discount)) : product.price).toStringAsFixed(2)} ر.س',
+                              '${(product.discount > 0 ? (product.price * (1 - product.discount / 100)) : product.price).toStringAsFixed(2)} ر.س',
                               style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 16),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,

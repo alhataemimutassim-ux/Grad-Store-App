@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:grad_store_app/core/theme/theme.dart';
 import 'package:grad_store_app/core/utils/app_navigator.dart';
 import 'package:grad_store_app/core/widgets/app_title_widget.dart';
 import 'package:grad_store_app/core/widgets/rate_widget.dart';
 import 'package:grad_store_app/features/home_feature/presentation/screens/products_screen.dart';
-
-import '../../../../core/theme/dimens.dart';
-import '../../data/data_source/local/sample_data.dart';
+import 'package:grad_store_app/core/theme/dimens.dart';
+import 'package:grad_store_app/core/constants/api_constants.dart';
+import 'package:grad_store_app/features/products/presentation/state/products_provider.dart';
 import '../screens/product_details_screen.dart';
 
 class ProductsList extends StatelessWidget {
@@ -14,16 +15,25 @@ class ProductsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: titleOfTheListOfProducts.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemBuilder: (final context, final index) {
+    return Consumer<ProductsProvider>(
+      builder: (context, provider, child) {
+        if (provider.status == ProductsStatus.loading) {
+          return const SizedBox(
+            height: 100,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        
+        final products = provider.items;
+        if (products.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AppTitleWidget(
-              title: titleOfTheListOfProducts[index],
+              title: 'أحــدث المنتجات',
               onPressed: () {
                 appPush(context, ProductsScreen());
               },
@@ -32,14 +42,15 @@ class ProductsList extends StatelessWidget {
               height: 100,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: productsName.length,
+                itemCount: products.length,
                 shrinkWrap: true,
                 itemBuilder: (final context, final index) {
+                  final p = products[index];
                   return Padding(
                     padding: const EdgeInsets.only(left: Dimens.largePadding),
                     child: InkWell(
-                      onTap: (){
-                        appPush(context, ProductDetailsScreen());
+                      onTap: () {
+                        appPush(context, ProductDetailsScreen(productId: p.id));
                       },
                       borderRadius: BorderRadius.circular(24),
                       child: SizedBox(
@@ -53,10 +64,15 @@ class ProductsList extends StatelessWidget {
                               width: 196,
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(24),
-                                child: Image.asset(
-                                  productsImage[index],
-                                  fit: BoxFit.cover,
-                                ),
+                                child: p.mainImage != null && p.mainImage!.isNotEmpty
+                                  ? Image.network(
+                                      p.mainImage!.startsWith('http') 
+                                      ? p.mainImage! 
+                                      : '${ApiConstants.baseUrl}${p.mainImage}',
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(color: Colors.grey[300]),
+                                    )
+                                  : Container(color: Colors.grey[300]),
                               ),
                             ),
                             Column(
@@ -76,7 +92,11 @@ class ProductsList extends StatelessWidget {
                                     ),
                                     color: context.theme.scaffoldBackgroundColor,
                                   ),
-                                  child: RateWidget(rate: '7.10'),
+                                  child: RateWidget(
+                                    rate: (p.averageRating != null && p.averageRating! > 0)
+                                        ? p.averageRating!.toStringAsFixed(1)
+                                        : '0.0',
+                                  ),
                                 ),
                                 Container(
                                   width: 196,
@@ -102,7 +122,7 @@ class ProductsList extends StatelessWidget {
                                   ),
                                   child: Center(
                                     child: Text(
-                                      productsName[index],
+                                      p.name,
                                       style: context
                                           .theme
                                           .appTypography
@@ -110,6 +130,8 @@ class ProductsList extends StatelessWidget {
                                           .copyWith(
                                             color: context.theme.appColors.white,
                                           ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ),

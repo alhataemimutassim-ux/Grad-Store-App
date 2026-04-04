@@ -7,8 +7,9 @@ import '../../../../core/theme/dimens.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_scaffold.dart';
 import '../../../../core/widgets/general_app_bar.dart';
-import '../../data/data_source/local/sample_data.dart';
 import '../widgets/sort_and_filter_list.dart';
+import 'package:provider/provider.dart';
+import 'package:grad_store_app/features/categories/presentation/state/categories_provider.dart';
 
 class SortAndFilterScreen extends StatelessWidget {
   const SortAndFilterScreen({super.key});
@@ -43,7 +44,12 @@ class SortAndFilterScreen extends StatelessWidget {
               endIndent: Dimens.largePadding,
             ),
             FiltersTitle(title: 'فئات'),
-            SortAndFilterList(titles: ['الجميع', ...titlesOfCategories]),
+            Consumer<CategoriesProvider>(
+              builder: (context, provider, child) {
+                final categoryNames = provider.items.map((e) => e.name).toList();
+                return SortAndFilterList(titles: ['الجميع', ...categoryNames]);
+              },
+            ),
             AppDivider(
               indent: Dimens.largePadding,
               endIndent: Dimens.largePadding,

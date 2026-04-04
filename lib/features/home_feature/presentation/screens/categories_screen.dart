@@ -1,156 +1,73 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:grad_store_app/core/theme/dimens.dart';
 import 'package:grad_store_app/core/theme/theme.dart';
-import 'package:grad_store_app/core/widgets/rate_widget.dart';
 
-import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_scaffold.dart';
-import '../../../../core/widgets/app_title_widget.dart';
 import '../../../../core/widgets/general_app_bar.dart';
-import '../../../cart_feature/data/data_source/local/fake_products.dart';
-import '../../../cart_feature/data/models/product_model.dart';
-import '../../../cart_feature/presentation/bloc/cart_cubit.dart';
-import '../../data/data_source/local/sample_data.dart';
+import 'package:grad_store_app/features/categories/presentation/state/categories_provider.dart';
 
-class CategoriesScreen extends StatelessWidget {
+class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
 
   @override
+  State<CategoriesScreen> createState() => _CategoriesScreenState();
+}
+
+class _CategoriesScreenState extends State<CategoriesScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      final prov = Provider.of<CategoriesProvider>(context, listen: false);
+      prov.fetchAll();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final prov = Provider.of<CategoriesProvider>(context);
+
     return AppScaffold(
-      appBar: GeneralAppBar(title: 'المنتجات'),
+      appBar: GeneralAppBar(title: 'الفئات'),
       padding: EdgeInsets.zero,
-      body: ListView.separated(
-        itemCount: titlesOfCategories.length,
-        shrinkWrap: true,
-        itemBuilder: (final context, final index) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppTitleWidget(
-                thumbnailPath: imagesOfCategories[index],
-                title: titlesOfCategories[index],
-                onPressed: () {},
-              ),
-              SizedBox(
-                height: 264,
-                child: ListView.builder(
-                  itemCount: categoryProductsImage.length,
-                  scrollDirection: Axis.horizontal,
-                  shrinkWrap: true,
-                  itemBuilder: (final context, final index) {
-                    return Container(
-                      width: 138,
-                      height: 243,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).scaffoldBackgroundColor,
-                        borderRadius: BorderRadius.circular(
-                          Dimens.largePadding,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: context.theme.appColors.black.withValues(
-                              alpha: 0.1,
-                            ),
-                            blurRadius: 10,
-                          ),
-                        ],
-                      ),
-                      margin: EdgeInsets.only(
-                        left: Dimens.largePadding,
-                        top: Dimens.smallPadding,
-                        bottom: Dimens.smallPadding,
-                      ),
-                      child: Column(
-                        spacing: Dimens.padding,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            height: 110,
-                            width: 180,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(
-                                Dimens.corners,
-                              ),
-                              child: Image.asset(
-                                categoryProductsImage[index],
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            height: 32,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: Dimens.smallPadding,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  categoryProductsName[index],
-                                  style: context.theme.appTypography.labelMedium
-                                      .copyWith(fontWeight: FontWeight.bold),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 2,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              RateWidget(rate: '7.10'),
-                              Text(
-                                '1K+ التقييم',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                            ],
-                          ),
-                          Text(
-                            '\$ ${index + 1}8.00',
-                            style: context.theme.appTypography.labelLarge
-                                .copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(
-                            width: 100,
-                            height: 32,
-                            child: AppButton(
-                              title: 'اضف الئ السلة',
-                              onPressed: () {
-                                _addToCart(context);
-                              },
-                              margin: EdgeInsets.zero,
-                              padding: WidgetStateProperty.all<EdgeInsets>(
-                                EdgeInsets.symmetric(
-                                  horizontal: Dimens.padding,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
+      body: Builder(builder: (context) {
+        if (prov.status == CategoriesStatus.loading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (prov.status == CategoriesStatus.error) {
+          return Center(child: Text(prov.error));
+        }
+        if (prov.items.isEmpty) {
+          return const Center(child: Text('لا توجد فئات'));
+        }
+
+        return ListView.separated(
+          itemCount: prov.items.length,
+          itemBuilder: (context, index) {
+            final cat = prov.items[index];
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Dimens.largePadding, vertical: Dimens.smallPadding),
+              child: Card(
+                child: ListTile(
+                  leading: cat.imageUrl != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(cat.imageUrl!, width: 56, height: 56, fit: BoxFit.cover),
+                        )
+                      : SizedBox(width: 56, height: 56, child: Icon(Icons.category, color: context.theme.appColors.gray4)),
+                  title: Text(cat.name),
+                  subtitle: cat.description != null ? Text(cat.description!) : null,
+                  onTap: () {
+                    // TODO: navigate to category products page
                   },
                 ),
               ),
-            ],
-          );
-        },
-        separatorBuilder: (final context, final index) {
-          return SizedBox(height: Dimens.largePadding);
-        },
-      ),
-    );
-  }
-
-  void _addToCart(final BuildContext context) {
-    final cartCubit = context.read<CartCubit>();
-    final ProductModel product = FakeProducts.products[Random().nextInt(7)];
-    cartCubit.addItem(product);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('تم اضافة المنتج الئ السلة')),
+            );
+          },
+          separatorBuilder: (context, index) => SizedBox(height: Dimens.largePadding),
+        );
+      }),
     );
   }
 }

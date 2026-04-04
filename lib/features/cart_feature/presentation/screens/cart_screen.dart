@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:grad_store_app/core/theme/theme.dart';
 import 'package:grad_store_app/core/utils/app_navigator.dart';
 import 'package:grad_store_app/core/widgets/app_button.dart';
 import 'package:grad_store_app/core/widgets/app_scaffold.dart';
 import 'package:grad_store_app/core/widgets/general_app_bar.dart';
-import 'package:grad_store_app/features/cart_feature/presentation/bloc/cart_cubit.dart';
+import 'package:grad_store_app/features/cart/presentation/state/cart_provider.dart';
 import 'package:grad_store_app/features/cart_feature/presentation/screens/proceed_to_checkout_screen.dart';
 
 import '../../../../core/gen/assets.gen.dart';
@@ -23,14 +23,14 @@ class CartScreen extends StatelessWidget {
     return AppScaffold(
       padding: EdgeInsets.zero,
       appBar: GeneralAppBar(title: 'السلة', showBackIcon: false),
-      body: BlocBuilder<CartCubit, CartState>(
-        builder: (context, state) {
-          if (state is CartInitial) {
-            return Center(child: CircularProgressIndicator());
-          } else if (state is CartError) {
-            return Center(child: Text('Error: ${state.message}'));
-          } else if (state is CartLoaded) {
-            if (state.items.isEmpty) {
+      body: Consumer<CartProvider>(
+        builder: (context, provider, child) {
+          if (provider.status == CartStatus.loading) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (provider.status == CartStatus.error) {
+            return Center(child: Text('Error: ${provider.error}'));
+          } else if (provider.status == CartStatus.loaded) {
+            if (provider.items.isEmpty) {
               return Center(
                 child: Column(
                   spacing: Dimens.largePadding,
@@ -53,20 +53,22 @@ class CartScreen extends StatelessWidget {
             }
             return Column(
               children: [
-                Expanded(child: CartListWidget(items: state.items)),
+                Expanded(child: CartListWidget(items: provider.items, cache: provider.productCache)),
+                if (provider.loadingProducts)
+                   const LinearProgressIndicator(),
                 Padding(
-                  padding: EdgeInsets.symmetric(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: Dimens.largePadding,
                   ),
                   child: Column(
                     children: [
-                      SizedBox(height: Dimens.largePadding),
+                      const SizedBox(height: Dimens.largePadding),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('المجموع', style: appTypography.bodyLarge),
                           Text(
-                            '\$${state.totalAmount.toStringAsFixed(2)}',
+                            '\$${provider.totalAmount.toStringAsFixed(2)}',
                             style: appTypography.bodyLarge.copyWith(
                               color: appColors.primary,
                             ),
@@ -76,11 +78,11 @@ class CartScreen extends StatelessWidget {
                       AppButton(
                         title: 'تابع عملية الشراء',
                         onPressed: () {
-                          appPush(context, ProceedToCheckoutScreen());
+                          appPush(context, const ProceedToCheckoutScreen());
                         },
                         textStyle: appTypography.bodyLarge,
                         borderRadius: Dimens.corners,
-                        margin: EdgeInsets.symmetric(
+                        margin: const EdgeInsets.symmetric(
                           vertical: Dimens.largePadding,
                         ),
                       ),
@@ -90,7 +92,7 @@ class CartScreen extends StatelessWidget {
               ],
             );
           }
-          return SizedBox.shrink();
+          return const SizedBox.shrink();
         },
       ),
     );

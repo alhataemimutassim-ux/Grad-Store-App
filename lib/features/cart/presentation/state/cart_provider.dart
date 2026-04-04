@@ -37,6 +37,19 @@ class CartProvider with ChangeNotifier {
   bool _loadingProducts = false;
   bool get loadingProducts => _loadingProducts;
 
+  double get totalAmount {
+    double sum = 0;
+    for (var item in _items) {
+      final p = _productCache[item.productId];
+      if (p != null) {
+        final price = p.price;
+        final disc = p.discount;
+        sum += (price - (price * disc / 100)) * item.quantity;
+      }
+    }
+    return sum;
+  }
+
   Future<void> fetchAll() async {
     _status = CartStatus.loading;
     notifyListeners();

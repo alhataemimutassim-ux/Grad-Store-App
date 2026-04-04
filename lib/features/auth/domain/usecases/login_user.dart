@@ -1,3 +1,4 @@
+import '../../../auth/data/datasources/auth_remote_datasource.dart' show LoginResult;
 import '../repositories/auth_repository.dart';
 
 class LoginUser {
@@ -5,15 +6,10 @@ class LoginUser {
 
   LoginUser(this.repository);
 
-  Future<String> execute({
+  Future<LoginResult> execute({
     required String email,
     required String password,
   }) {
     return repository.login(email: email, password: password);
   }
 }
-
-// lib/features/auth/domain/usecases/refresh_token.dart
-
-
-// lib/features/auth/domain/usecases/logout_user.dart

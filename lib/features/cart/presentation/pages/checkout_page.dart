@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:grad_store_app/features/home_feature/presentation/widgets/login_a_page.dart';
 import 'package:provider/provider.dart';
 import '../state/checkout_provider.dart';
 import '../state/cart_provider.dart';
@@ -142,7 +143,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         // Detect unauthenticated error and prompt for login
                         if (err.contains('user not authenticated') || err.contains('not authenticated') || err.contains('غير مصرح') || err.contains('user not authenticated')) {
                           // direct navigation to LoginPage (simpler flow): open login and retry submit if successful
-                          final res = await navigator.push(MaterialPageRoute(builder: (_) => const ResourceHandle.fromReadPipe()));
+                          final res = await navigator.push(MaterialPageRoute(builder: (_) => const LoginaPage()));
                           if (res == true) {
                             final created2 = await checkout.submit(items: cartProv.items);
                             if (!mounted) return;

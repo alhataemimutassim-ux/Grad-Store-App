@@ -19,37 +19,41 @@ class ApiClient {
   Future<Map<String, dynamic>> get(String path) async {
     await _ensureValidToken();
     final token = tokenManager == null ? null : await tokenManager!.getAccessToken();
+    final refreshToken = tokenManager == null ? null : await tokenManager!.getRefreshToken();
 
     final headers = {
       'Content-Type': 'application/json',
     };
     if (token != null) headers['Authorization'] = 'Bearer $token';
+    if (refreshToken != null) headers['Cookie'] = 'refreshToken=$refreshToken';
 
     final response = await client.get(
       Uri.parse(ApiConstants.baseUrl + path),
       headers: headers,
     );
 
-    return _processResponse(response);
+    return await _processResponse(response);
   }
 
   // ===== POST request example =====
-  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> post(String path, [Map<String, dynamic>? body]) async {
     await _ensureValidToken();
     final token = tokenManager == null ? null : await tokenManager!.getAccessToken();
+    final refreshToken = tokenManager == null ? null : await tokenManager!.getRefreshToken();
 
     final headers = {
       'Content-Type': 'application/json',
     };
     if (token != null) headers['Authorization'] = 'Bearer $token';
+    if (refreshToken != null) headers['Cookie'] = 'refreshToken=$refreshToken';
 
     final response = await client.post(
       Uri.parse(ApiConstants.baseUrl + path),
       headers: headers,
-      body: jsonEncode(body),
+      body: body != null ? jsonEncode(body) : null,
     );
 
-    return _processResponse(response);
+    return await _processResponse(response);
   }
 
   // ===== تحقق وتجديد التوكن =====
@@ -61,13 +65,46 @@ class ApiClient {
     if (token == null) return;
   }
 
-  Map<String, dynamic> _processResponse(http.Response response) {
+  Future<Map<String, dynamic>> _processResponse(http.Response response) async {
+    // حاول حفظ الكوكيز إذا توفرت
+    if (tokenManager != null && response.headers.containsKey('set-cookie')) {
+      final setCookieHeader = response.headers['set-cookie'];
+      if (setCookieHeader != null) {
+        final cookies = setCookieHeader.split(',');
+        for (final cookie in cookies) {
+          if (cookie.trim().startsWith('refreshToken=')) {
+            final parts = cookie.split(';');
+            final tokenPart = parts.firstWhere((p) => p.trim().startsWith('refreshToken='));
+            final token = tokenPart.split('=')[1];
+            await tokenManager!.saveRefreshToken(token);
+          }
+        }
+      }
+    }
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return jsonDecode(response.body);
-    } else if (response.statusCode == 401) {
-      throw ServerException('غير مصرح، انتهت صلاحية التوكن');
+      if (response.body.isEmpty) return {};
+      try {
+        return jsonDecode(response.body);
+      } catch (_) {
+        return {};
+      }
     } else {
-      throw ServerException('خطأ في السيرفر');
+      String errMsg = 'خطأ في السيرفر';
+      try {
+        if (response.body.isNotEmpty) {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map && decoded.containsKey('message')) {
+            errMsg = decoded['message'].toString();
+          }
+        }
+      } catch (_) {}
+
+      if (response.statusCode == 401) {
+        throw ServerException(errMsg.contains('خطأ') ? 'غير مصرح، انتهت صلاحية التوكن' : errMsg);
+      } else {
+        throw ServerException(errMsg);
+      }
     }
   }
 }

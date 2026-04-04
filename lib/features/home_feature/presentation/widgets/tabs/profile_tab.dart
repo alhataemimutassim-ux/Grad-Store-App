@@ -7,12 +7,14 @@ import 'package:grad_store_app/core/widgets/app_scaffold.dart';
 import 'package:grad_store_app/core/widgets/bordered_container.dart';
 import 'package:grad_store_app/core/widgets/general_app_bar.dart';
 
+import 'package:provider/provider.dart';
 import '../../../../../core/gen/assets.gen.dart';
 import '../../../../../core/theme/dimens.dart';
 import '../../../../../core/widgets/app_list_tile.dart';
 import '../../../../../core/widgets/app_svg_viewer.dart';
 import '../../../../../core/widgets/user_profile_image_widget.dart';
 import '../../bloc/theme_cubit.dart';
+import 'package:grad_store_app/features/studentprofile/presentation/state/student_profile_provider.dart';
 
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
@@ -21,6 +23,9 @@ class ProfileTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final appColors = context.theme.appColors;
     final appTypography = context.theme.appTypography;
+    final profileProvider = context.watch<StudentProfileProvider>();
+    final profile = profileProvider.profile;
+    
     return AppScaffold(
       appBar: GeneralAppBar(title: 'Profile', showBackIcon: false),
       body: SingleChildScrollView(
@@ -30,12 +35,12 @@ class ProfileTab extends StatelessWidget {
           children: [
             BorderedContainer(
               child: ListTile(
-                leading: UserProfileImageWidget(width: 56, height: 56),
-                title: Text('محمد توفيق', style: appTypography.bodyLarge),
+                leading: const UserProfileImageWidget(width: 56, height: 56),
+                title: Text(profile?.name ?? 'Loading...', style: appTypography.bodyLarge),
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: Dimens.padding),
                   child: Text(
-                    'mohammedtawfiq@gmail.com',
+                    profile?.email ?? '',
                     style: appTypography.bodySmall.copyWith(
                       color:
                           checkDarkMode(context)

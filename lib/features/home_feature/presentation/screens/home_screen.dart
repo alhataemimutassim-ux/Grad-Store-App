@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:grad_store_app/core/theme/theme.dart';
 import 'package:grad_store_app/core/widgets/app_scaffold.dart';
 import 'package:grad_store_app/core/widgets/app_svg_viewer.dart';
 import 'package:grad_store_app/features/home_feature/presentation/widgets/tabs/cart_tab.dart';

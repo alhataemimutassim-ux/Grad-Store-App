@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:grad_store_app/core/theme/dimens.dart';
 import 'package:grad_store_app/core/theme/theme.dart';
 import 'package:grad_store_app/core/utils/check_theme_status.dart';
 
-import '../../data/models/cart_item_model.dart';
-import '../bloc/cart_cubit.dart';
+import 'package:grad_store_app/features/cart/domain/entities/cart_item.dart';
+import 'package:grad_store_app/features/cart/presentation/state/cart_provider.dart';
 
 class CartActions extends StatelessWidget {
   const CartActions({super.key, required this.item});
 
-  final CartItemModel item;
+  final CartItem item;
 
   @override
   Widget build(BuildContext context) {
     final appColors = context.theme.appColors;
     final appTypography = context.theme.appTypography;
-    final cartCubit = context.read<CartCubit>();
+    final cartProvider = context.read<CartProvider>();
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -30,7 +30,13 @@ class CartActions extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
           ),
           child: InkWell(
-            onTap: () => cartCubit.decrementQuantity(item.product.id),
+            onTap: () {
+              if (item.quantity > 1) {
+                cartProvider.changeQuantity(item.id, item.quantity - 1);
+              } else {
+                cartProvider.remove(item.id);
+              }
+            },
             borderRadius: BorderRadius.circular(4),
             child: Icon(
               Icons.remove,
@@ -48,7 +54,7 @@ class CartActions extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
           ),
           child: InkWell(
-            onTap: () => cartCubit.incrementQuantity(item.product.id),
+            onTap: () => cartProvider.changeQuantity(item.id, item.quantity + 1),
             borderRadius: BorderRadius.circular(4),
             child: Icon(Icons.add, size: 16, color: appColors.white),
           ),

@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:grad_store_app/core/utils/app_navigator.dart';
 import 'package:grad_store_app/core/widgets/app_bordered_icon_button.dart';
 
-import '../../../../../features/favorites_feature/presentation/favorites_cubit.dart';
-import '../../../../../features/cart_feature/data/models/product_model.dart';
+import 'package:grad_store_app/features/wishlist/presentation/state/wishlist_provider.dart';
+import 'package:grad_store_app/features/products/domain/entities/product.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/theme/dimens.dart';
 
 class ProductDetailsAppBar extends StatelessWidget {
   const ProductDetailsAppBar({super.key, required this.product});
 
-  final ProductModel product;
+  final Product product;
 
   @override
   Widget build(BuildContext context) {
@@ -30,14 +30,14 @@ class ProductDetailsAppBar extends StatelessWidget {
       actions: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: Dimens.largePadding),
-          child: BlocBuilder<FavoritesCubit, List<ProductModel>>(
-            builder: (context, state) {
-              final isFav = state.any((p) => p.id == product.id);
+          child: Consumer<WishlistProvider>(
+            builder: (context, provider, child) {
+              final isFav = provider.isInWishlist(product.id);
               return AppBorderedIconButton(
                 iconPath: Assets.icons.heart,
                 color: isFav ? Colors.red : Colors.white,
                 onPressed: () {
-                  context.read<FavoritesCubit>().toggle(product);
+                  provider.toggle(product.id);
                 },
               );
             },

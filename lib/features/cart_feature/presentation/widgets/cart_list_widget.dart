@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:grad_store_app/core/theme/dimens.dart';
 import 'package:grad_store_app/core/theme/theme.dart';
 import 'package:grad_store_app/core/widgets/app_divider.dart';
 import 'package:grad_store_app/core/widgets/app_svg_viewer.dart';
 import 'package:grad_store_app/core/widgets/rate_widget.dart';
-import 'package:grad_store_app/features/cart_feature/data/models/cart_item_model.dart';
-import 'package:grad_store_app/features/cart_feature/presentation/bloc/cart_cubit.dart';
-
+import 'package:grad_store_app/core/constants/api_constants.dart';
+import 'package:grad_store_app/features/cart/domain/entities/cart_item.dart';
+import 'package:grad_store_app/features/cart/presentation/state/cart_provider.dart';
+import 'package:grad_store_app/features/products/data/models/product_model.dart';
 import '../../../../core/gen/assets.gen.dart';
 import 'cart_actions.dart';
 
 class CartListWidget extends StatelessWidget {
-  const CartListWidget({super.key, required this.items});
+  const CartListWidget({super.key, required this.items, required this.cache});
 
-  final List<CartItemModel> items;
+  final List<CartItem> items;
+  final Map<int, ProductModel> cache;
 
   @override
   Widget build(BuildContext context) {
@@ -23,12 +25,18 @@ class CartListWidget extends StatelessWidget {
     return ListView.separated(
       itemCount: items.length,
       itemBuilder: (final context, final index) {
+        final item = items[index];
+        final product = cache[item.productId];
+        if (product == null) {
+          return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()));
+        }
+        
         return Dismissible(
-          key: Key(items[index].product.id.toString()),
+          key: Key(item.id.toString()),
           background: Container(
             color: appColors.error,
             alignment: Alignment.centerRight,
-            padding: EdgeInsets.only(right: 20),
+            padding: const EdgeInsets.only(right: 20),
             child: AppSvgViewer(
               Assets.icons.trash,
               width: 28,
@@ -38,10 +46,10 @@ class CartListWidget extends StatelessWidget {
           ),
           direction: DismissDirection.endToStart,
           onDismissed: (final direction) {
-            context.read<CartCubit>().removeItem(items[index].product.id);
+            context.read<CartProvider>().remove(item.id);
           },
           child: Padding(
-            padding: EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: Dimens.largePadding,
               vertical: Dimens.veryLargePadding,
             ),
@@ -49,16 +57,21 @@ class CartListWidget extends StatelessWidget {
               spacing: Dimens.largePadding,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox.shrink(),
+                const SizedBox.shrink(),
                 SizedBox(
                   height: 95,
                   width: 95,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(Dimens.corners),
-                    child: Image.asset(
-                      items[index].product.imageUrl,
-                      fit: BoxFit.cover,
-                    ),
+                    child: product.mainImage != null && product.mainImage!.isNotEmpty
+                        ? Image.network(
+                            product.mainImage!.startsWith('http') 
+                                ? product.mainImage! 
+                                : '${ApiConstants.baseUrl}${product.mainImage}',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(color: Colors.grey[300]),
+                          )
+                        : Container(color: Colors.grey[300]),
                   ),
                 ),
                 Expanded(
@@ -69,13 +82,15 @@ class CartListWidget extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            items[index].product.name,
-                            style: appTypography.bodyLarge,
-                            overflow: TextOverflow.ellipsis,
+                          Expanded(
+                            child: Text(
+                              product.name,
+                              style: appTypography.bodyLarge,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                           RateWidget(
-                            rate: items[index].product.rate.toString(),
+                            rate: '5.0', // Fallback as product API may defer reviews
                           ),
                         ],
                       ),
@@ -89,19 +104,19 @@ class CartListWidget extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '${items[index].product.weight} kg',
+                                  'الكمية',
                                   style: appTypography.labelMedium.copyWith(
                                     color: appColors.gray4,
                                   ),
                                 ),
                                 Text(
-                                  '\$ ${items[index].product.price}',
+                                  '\$ ${product.price}',
                                   style: appTypography.bodyLarge,
                                 ),
                               ],
                             ),
                           ),
-                          CartActions(item: items[index]),
+                          CartActions(item: item),
                         ],
                       ),
                     ],
@@ -113,7 +128,7 @@ class CartListWidget extends StatelessWidget {
         );
       },
       separatorBuilder: (final context, final index) {
-        return AppDivider();
+        return const AppDivider();
       },
     );
   }

@@ -17,16 +17,23 @@ class ReviewsRemoteDataSourceImpl implements ReviewsRemoteDataSource {
 
   @override
   Future<List<ReviewModel>> getReviewsByProductId(int productId) async {
-    final uri = Uri.parse('${ApiConstants.baseUrl}/reviews/$productId');
+    // API returns a single review for /reviews/$id, so we fetch all reviews and filter by productId
+    final uri = Uri.parse('${ApiConstants.baseUrl}/reviews');
     final resp = await client.get(uri);
     if (resp.statusCode >= 200 && resp.statusCode < 300) {
       final body = json.decode(resp.body);
       if (body is List) {
-        return body.map((e) => ReviewModel.fromJson(e as Map<String, dynamic>)).toList();
+        return body
+            .map((e) => ReviewModel.fromJson(e as Map<String, dynamic>))
+            .where((review) => review.productId == productId)
+            .toList();
       }
       // maybe wrapped
       if (body is Map && body['data'] is List) {
-        return (body['data'] as List).map((e) => ReviewModel.fromJson(e as Map<String, dynamic>)).toList();
+        return (body['data'] as List)
+            .map((e) => ReviewModel.fromJson(e as Map<String, dynamic>))
+            .where((review) => review.productId == productId)
+            .toList();
       }
       return [];
     }

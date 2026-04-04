@@ -1,4 +1,3 @@
-import '../entities/user.dart';
 import '../repositories/auth_repository.dart';
 
 class RegisterUser {
@@ -6,7 +5,8 @@ class RegisterUser {
 
   RegisterUser(this.repository);
 
-  Future<User> execute({
+  /// يُسجّل مستخدمًا جديدًا. السرفر يُعيد رسالة نجاح فقط بدون بيانات المستخدم.
+  Future<void> execute({
     required String name,
     required String email,
     required String password,

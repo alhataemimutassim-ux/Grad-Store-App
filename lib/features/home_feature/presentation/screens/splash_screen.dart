@@ -8,7 +8,14 @@ import 'package:grad_store_app/core/utils/check_device_size.dart';
 import 'package:grad_store_app/core/widgets/app_scaffold.dart';
 import 'package:grad_store_app/features/home_feature/presentation/widgets/login_a_page.dart';
 
+import 'package:provider/provider.dart';
 import '../../../../core/gen/assets.gen.dart';
+import 'package:grad_store_app/features/categories/presentation/state/categories_provider.dart';
+import 'package:grad_store_app/features/products/presentation/state/products_provider.dart';
+import 'package:grad_store_app/features/offers/presentation/state/offers_provider.dart';
+import 'package:grad_store_app/features/cart/presentation/state/cart_provider.dart';
+import 'package:grad_store_app/features/orders/presentation/state/orders_provider.dart';
+import 'package:grad_store_app/features/studentprofile/presentation/state/student_profile_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -21,8 +28,16 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Timer(Duration(milliseconds: 1500), () {
-      appPushReplacement(context, LoginaPage());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<CategoriesProvider>().fetchAll();
+      context.read<ProductsProvider>().fetchAll();
+      context.read<OffersProvider>().fetchPublicOffers();
+      context.read<CartProvider>().fetchAll();
+      context.read<OrdersProvider>().fetchMyOrders();
+      context.read<StudentProfileProvider>().fetchProfile();
+    });
+    Timer(const Duration(milliseconds: 1500), () {
+      appPushReplacement(context, const LoginaPage());
     });
   }
 

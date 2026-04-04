@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:provider/provider.dart';
+import 'package:grad_store_app/features/auth/presentation/state/auth_provider.dart';
 import 'package:grad_store_app/core/theme/theme.dart';
 import 'package:grad_store_app/core/widgets/app_scaffold.dart';
 
@@ -11,27 +12,19 @@ class RegisterMPage extends StatefulWidget {
 }
 
 class _RegisterMPageState extends State<RegisterMPage> {
-  final TextEditingController _firstNameController = TextEditingController();
-  final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _ageController = TextEditingController();
-  final TextEditingController _majorController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _customGenderController = TextEditingController();
 
   bool _obscurePassword = true;
-  String? _gender = "ذكر";
-  DateTime? _birthDate;
 
   @override
   void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
+    _nameController.dispose();
     _emailController.dispose();
-    _ageController.dispose();
-    _majorController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
-    _customGenderController.dispose();
     super.dispose();
   }
 
@@ -66,26 +59,11 @@ class _RegisterMPageState extends State<RegisterMPage> {
             ),
             const SizedBox(height: 35.0),
 
-            Row(
-              children: [
-                Expanded(
-                  child: _buildField(
-                    _firstNameController,
-                    "الاسم الأول",
-                    Icons.person_outline,
-                    colors,
-                  ),
-                ),
-                const SizedBox(width: 12.0),
-                Expanded(
-                  child: _buildField(
-                    _lastNameController,
-                    "الاسم الأخير",
-                    Icons.person_outline,
-                    colors,
-                  ),
-                ),
-              ],
+            _buildField(
+              _nameController,
+              "الاسم الكامل (أو اسم النقطة)",
+              Icons.storefront_outlined,
+              colors,
             ),
             const SizedBox(height: 16.0),
 
@@ -98,41 +76,15 @@ class _RegisterMPageState extends State<RegisterMPage> {
             ),
             const SizedBox(height: 16.0),
 
-            Row(
-              children: [
-                Expanded(
-                  child: _buildField(
-                    _ageController,
-                    "تاريخ الميلاد",
-                    Icons.calendar_today_outlined,
-                    colors,
-                    readOnly: true,
-                    onTap: _pickBirthDate,
-                  ),
-                ),
-                const SizedBox(width: 12.0),
-                Expanded(child: _buildGenderDropdown(colors)),
-              ],
-            ),
-
-            if (_gender == "مخصص") ...[
-              const SizedBox(height: 16.0),
-              _buildField(
-                _customGenderController,
-                "تحديد الجنس",
-                Icons.edit_note_rounded,
-                colors,
-              ),
-            ],
-
-            const SizedBox(height: 16.0),
             _buildField(
-              _majorController,
-              "التخصص الجامعي",
-              Icons.school_outlined,
+              _phoneController,
+              "رقم الهاتف",
+              Icons.phone_android_rounded,
               colors,
+              type: TextInputType.phone,
             ),
             const SizedBox(height: 16.0),
+            
             _buildField(
               _passwordController,
               "كلمة المرور",
@@ -146,23 +98,68 @@ class _RegisterMPageState extends State<RegisterMPage> {
             SizedBox(
               width: double.infinity,
               height: 55.0,
-              child: ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colors.primary,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                  ),
-                ),
-                child: const Text(
-                  "إنشاء حساب مورد",
-                  style: TextStyle(
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+              child: Consumer<AuthProvider>(
+                builder: (context, auth, child) {
+                  return ElevatedButton(
+                    onPressed: auth.status == AuthStatus.loading
+                        ? null
+                        : () async {
+                            final name = _nameController.text.trim();
+                            final email = _emailController.text.trim();
+                            final phone = _phoneController.text.trim();
+                            final password = _passwordController.text;
+
+                            if (name.isEmpty || email.isEmpty || phone.isEmpty || password.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('الرجاء ملء كافة الحقول')),
+                              );
+                              return;
+                            }
+
+                            await auth.register(
+                              name: name,
+                              email: email,
+                              password: password,
+                              phone: phone,
+                              roleId: 1, // 1 for Vendor (Seller)
+                            );
+
+                            if (auth.status == AuthStatus.registrationSuccess) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('تم إنشاء حساب المورد بنجاح! يرجى تسجيل الدخول.'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                              Navigator.pop(context); // العودة إلى شاشة الدخول
+                            } else if (auth.status == AuthStatus.error) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(auth.errorMessage),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.primary,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16.0),
+                      ),
+                    ),
+                    child: auth.status == AuthStatus.loading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            "إنشاء حساب مورد",
+                            style: TextStyle(
+                              fontSize: 16.0,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                  );
+                },
               ),
             ),
 
@@ -240,67 +237,4 @@ class _RegisterMPageState extends State<RegisterMPage> {
     );
   }
 
-  Widget _buildGenderDropdown(dynamic colors) {
-    return DropdownButtonFormField<String>(
-      value: _gender,
-      decoration: InputDecoration(
-        labelText: "الجنس",
-        prefixIcon: Icon(Icons.wc_rounded, color: colors.primary, size: 20.0),
-        filled: true,
-        fillColor: (colors.primary as Color).withValues(alpha: 0.05),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16.0),
-          borderSide: BorderSide.none,
-        ),
-      ),
-      items: const [
-        DropdownMenuItem(value: "ذكر", child: Text("ذكر")),
-        DropdownMenuItem(value: "أنثى", child: Text("أنثى")),
-        DropdownMenuItem(value: "مخصص", child: Text("مخصص")),
-      ],
-      onChanged: (val) => setState(() => _gender = val),
-    );
-  }
-
-  Future<void> _pickBirthDate() async {
-    DateTime temp = _birthDate ?? DateTime(1995);
-    await showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SizedBox(
-        height: 300,
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text("إلغاء"),
-                ),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _birthDate = temp;
-                      _ageController.text =
-                          "${temp.day}/${temp.month}/${temp.year}";
-                    });
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text("تم"),
-                ),
-              ],
-            ),
-            const Divider(),
-            Expanded(
-              child: CupertinoDatePicker(
-                mode: CupertinoDatePickerMode.date,
-                initialDateTime: temp,
-                onDateTimeChanged: (d) => temp = d,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

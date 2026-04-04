@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:grad_store_app/features/auth/presentation/state/auth_provider.dart';
 import 'package:grad_store_app/core/widgets/app_scaffold.dart';
 import 'package:grad_store_app/core/theme/theme.dart';
 import 'package:grad_store_app/core/theme/dimens.dart';
@@ -20,13 +22,13 @@ class LoginMForm extends StatefulWidget {
 }
 
 class _LoginMFormState extends State<LoginMForm> {
-  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -81,9 +83,9 @@ class _LoginMFormState extends State<LoginMForm> {
 
               // --- Input Fields ---
               _buildTextField(
-                controller: _phoneController,
-                label: "رقم الهاتف",
-                icon: Icons.phone_android_rounded,
+                controller: _emailController,
+                label: "البريد الإلكتروني",
+                icon: Icons.email_rounded,
                 colors: colors,
               ),
               const SizedBox(height: 18.0),
@@ -98,27 +100,66 @@ class _LoginMFormState extends State<LoginMForm> {
                 colors: colors,
               ),
 
-              const SizedBox(height: 35.0),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () {
+                    // Navigate to Forgot Password
+                    Navigator.pushNamed(context, '/forgot_password');
+                  },
+                  child: Text("نسيت كلمة المرور؟", style: TextStyle(color: colors.primary)),
+                ),
+              ),
+
+              const SizedBox(height: 15.0),
               SizedBox(
                 width: double.infinity,
                 height: 58.0,
-                child: ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.primary,
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                    ),
-                  ),
-                  child: const Text(
-                    "دخول كـ مورد",
-                    style: TextStyle(
-                      fontSize: 18.0,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                child: Consumer<AuthProvider>(
+                  builder: (context, auth, child) {
+                    return ElevatedButton(
+                      onPressed: auth.status == AuthStatus.loading
+                          ? null
+                          : () async {
+                              final email = _emailController.text.trim();
+                              final password = _passwordController.text;
+                              if (email.isEmpty || password.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('يرجى ملء جميع الحقول')),
+                                );
+                                return;
+                              }
+                              await auth.login(email: email, password: password);
+                              if (auth.status == AuthStatus.authenticated) {
+                                Navigator.pushReplacementNamed(context, '/home'); // Change to vendor dashboard if created later
+                              } else if (auth.status == AuthStatus.error) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(auth.errorMessage),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.primary,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16.0),
+                        ),
+                      ),
+                      child: auth.status == AuthStatus.loading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              "دخول كـ مورد",
+                              style: TextStyle(
+                                fontSize: 18.0,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                    );
+                  },
                 ),
               ),
 

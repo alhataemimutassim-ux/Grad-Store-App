@@ -13,7 +13,7 @@ class ReviewModel extends Review {
 
   factory ReviewModel.fromJson(Map<String, dynamic> json) {
     // defensive parsing
-    final id = json['id'] ?? json['reviewId'] ?? 0;
+    final id = json['id'] ?? json['reviewId'] ?? json['idReview'] ?? 0;
     final productId = json['productId'] ?? json['productID'] ?? json['product_id'] ?? 0;
     final userId = json['userId'] ?? json['userID'] ?? json['user_id'];
     final userName = json['userName'] ?? json['username'] ?? json['authorName'];

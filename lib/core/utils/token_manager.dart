@@ -17,6 +17,14 @@ class TokenManager {
     return await _storage.read(key: 'accessToken');
   }
 
+  Future<void> saveRefreshToken(String token) async {
+    await _storage.write(key: 'refreshToken', value: token);
+  }
+
+  Future<String?> getRefreshToken() async {
+    return await _storage.read(key: 'refreshToken');
+  }
+
   /// Returns true if there is an access token and it is not expired (if token contains an 'exp' claim).
   Future<bool> hasValidAccessToken() async {
     final token = await getAccessToken();
@@ -91,8 +99,38 @@ class TokenManager {
     }
   }
 
+  /// Attempts to decode the stored JWT and extract the role id.
+  /// Looks for common claim names: 'roleId', 'role_id', 'role', 'RoleId'.
+  Future<int?> getRoleIdFromAccessToken() async {
+    final token = await getAccessToken();
+    if (token == null) return null;
+    try {
+      final parts = token.split('.');
+      if (parts.length < 2) return null;
+      final payload = parts[1];
+      var normalized = base64Url.normalize(payload);
+      final decoded = utf8.decode(base64Url.decode(normalized));
+      final dynamic parsed = jsonDecode(decoded);
+      if (parsed is Map<String, dynamic>) {
+        final Map<String, dynamic> json = parsed;
+        final candidates = ['roleId', 'role_id', 'RoleId', 'role'];
+        for (final k in candidates) {
+          if (json.containsKey(k)) {
+            final val = json[k];
+            if (val is int) return val;
+            if (val is String) return int.tryParse(val);
+          }
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> deleteAccessToken() async {
     await _storage.delete(key: 'accessToken');
+    await _storage.delete(key: 'refreshToken');
   }
 
   // Recent accounts: store a small list of previously used emails for quick login
