@@ -5,6 +5,7 @@ import 'package:grad_store_app/core/widgets/app_bordered_icon_button.dart';
 
 import 'package:grad_store_app/features/wishlist/presentation/state/wishlist_provider.dart';
 import 'package:grad_store_app/features/products/domain/entities/product.dart';
+import 'package:grad_store_app/core/utils/auth_guard.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/theme/dimens.dart';
 
@@ -37,7 +38,22 @@ class ProductDetailsAppBar extends StatelessWidget {
                 iconPath: Assets.icons.heart,
                 color: isFav ? Colors.red : Colors.white,
                 onPressed: () {
-                  provider.toggle(product.id);
+                  AuthGuard.checkAuth(context, onAuthenticated: () async {
+                    try {
+                      final added = await provider.toggle(product.id);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(added ? 'تمت الإضافة للمفضلة' : 'تم الحذف من المفضلة')),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('الرجاء تسجيل الدخول مجدداً، لقد انتهت الجلسة')),
+                        );
+                      }
+                    }
+                  });
                 },
               );
             },

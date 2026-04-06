@@ -13,8 +13,21 @@ import '../../../../core/theme/dimens.dart';
 import '../../../../core/widgets/app_svg_viewer.dart';
 import '../widgets/cart_list_widget.dart';
 
-class CartScreen extends StatelessWidget {
+class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
+
+  @override
+  State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<CartProvider>().fetchAll(silent: false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,10 +38,24 @@ class CartScreen extends StatelessWidget {
       appBar: GeneralAppBar(title: 'السلة', showBackIcon: false),
       body: Consumer<CartProvider>(
         builder: (context, provider, child) {
-          if (provider.status == CartStatus.loading) {
+          if (provider.status == CartStatus.loading || provider.status == CartStatus.initial) {
             return const Center(child: CircularProgressIndicator());
           } else if (provider.status == CartStatus.error) {
-            return Center(child: Text('Error: ${provider.error}'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 12),
+                  Text('حدث خطأ: ${provider.error}'),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () => provider.fetchAll(silent: false),
+                    child: const Text('إعادة المحاولة'),
+                  ),
+                ],
+              ),
+            );
           } else if (provider.status == CartStatus.loaded) {
             if (provider.items.isEmpty) {
               return Center(

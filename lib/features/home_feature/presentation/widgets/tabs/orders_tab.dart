@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart' as import_provider;
+import 'package:grad_store_app/features/orders/presentation/state/orders_provider.dart' as import_orders;
 import 'package:grad_store_app/core/theme/theme.dart';
 import 'package:grad_store_app/core/utils/check_theme_status.dart';
 import 'package:grad_store_app/core/widgets/app_scaffold.dart';
@@ -21,6 +23,11 @@ class _OrdersTabState extends State<OrdersTab>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    Future.microtask(() {
+      if (mounted) {
+        import_provider.Provider.of<import_orders.OrdersProvider>(context, listen: false).fetchMyOrders();
+      }
+    });
   }
 
   @override

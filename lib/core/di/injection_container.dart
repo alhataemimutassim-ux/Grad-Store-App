@@ -52,13 +52,18 @@ import '../../features/offers/domain/usecases/get_public_offers.dart';
 import '../../features/offers/presentation/state/offers_provider.dart';
 
 import '../../features/cart/data/datasources/cart_remote_datasource.dart';
+import '../../features/cart/data/datasources/checkout_remote_datasource.dart';
 import '../../features/cart/data/repositories/cart_repository_impl.dart';
+import '../../features/cart/data/repositories/checkout_repository_impl.dart';
 import '../../features/cart/domain/usecases/get_cart_items.dart';
 import '../../features/cart/domain/usecases/add_to_cart.dart';
 import '../../features/cart/domain/usecases/update_cart_item.dart';
 import '../../features/cart/domain/usecases/delete_cart_item.dart';
 import '../../features/cart/domain/usecases/get_cart_item_by_id.dart';
+import '../../features/cart/domain/usecases/get_payment_methods.dart';
+import '../../features/cart/domain/usecases/complete_checkout.dart';
 import '../../features/cart/presentation/state/cart_provider.dart';
+import '../../features/cart/presentation/state/checkout_provider.dart';
 
 import '../../features/wishlist/data/datasources/wishlist_remote_datasource.dart';
 import '../../features/wishlist/data/repositories/wishlist_repository_impl.dart';
@@ -73,11 +78,28 @@ import '../../features/orders/data/repositories/orders_repository_impl.dart';
 import '../../features/orders/domain/usecases/get_my_orders.dart';
 import '../../features/orders/presentation/state/orders_provider.dart';
 
-import '../../features/studentprofile/data/datasources/student_profile_remote_datasource.dart';
-import '../../features/studentprofile/data/repositories/student_profile_repository_impl.dart';
-import '../../features/studentprofile/domain/usecases/get_student_profile.dart';
-import '../../features/studentprofile/domain/usecases/update_student_profile.dart';
-import '../../features/studentprofile/presentation/state/student_profile_provider.dart';
+import '../../features/profile/data/datasources/profile_remote_datasource.dart';
+import '../../features/profile/data/repositories/profile_repository_impl.dart';
+import '../../features/profile/domain/usecases/get_my_profile.dart';
+import '../../features/profile/domain/usecases/update_my_profile.dart';
+import '../../features/profile/presentation/state/profile_provider.dart';
+
+import '../../features/sellershop/data/datasources/sellers_remote_datasource.dart';
+import '../../features/sellershop/data/repositories/sellers_repository_impl.dart';
+import '../../features/sellershop/domain/usecases/get_all_sellers.dart';
+import '../../features/sellershop/presentation/state/sellers_provider.dart';
+
+import '../../features/slider/data/datasources/slider_remote_datasource.dart';
+import '../../features/slider/data/repositories/slider_repository_impl.dart';
+import '../../features/slider/domain/usecases/get_active_sliders.dart';
+import '../../features/slider/presentation/state/slider_provider.dart';
+
+import '../../features/support/data/datasources/support_remote_datasource.dart';
+import '../../features/support/data/repositories/support_repository_impl.dart';
+import '../../features/support/domain/usecases/send_support_message.dart';
+import '../../features/support/domain/usecases/get_all_support_messages.dart';
+import '../../features/support/domain/usecases/delete_support_message.dart';
+import '../../features/support/presentation/state/support_provider.dart';
 
 import '../utils/token_manager.dart';
 import 'package:provider/single_child_widget.dart';
@@ -113,12 +135,16 @@ class InjectionContainer {
     final reviewsRepo = ReviewsRepositoryImpl(reviewsRemote);
 
     // --- Offers ---
-    final offersRemote = OffersRemoteDataSourceImpl(httpClient);
+    final offersRemote = OffersRemoteDataSourceImpl(httpClient, tokenManager: tokenManager);
     final offersRepo = OffersRepositoryImpl(offersRemote);
 
     // --- Cart ---
     final cartRemote = CartRemoteDataSourceImpl(httpClient, tokenManager: tokenManager);
     final cartRepo = CartRepositoryImpl(cartRemote);
+
+    // --- Checkout ---
+    final checkoutRemote = CheckoutRemoteDataSourceImpl(httpClient, tokenManager: tokenManager);
+    final checkoutRepo = CheckoutRepositoryImpl(checkoutRemote);
 
     // --- Wishlist ---
     final wishlistRemote = WishlistRemoteDataSourceImpl(httpClient, tokenManager: tokenManager);
@@ -128,9 +154,21 @@ class InjectionContainer {
     final ordersRemote = OrdersRemoteDataSourceImpl(httpClient, tokenManager: tokenManager);
     final ordersRepo = OrdersRepositoryImpl(ordersRemote);
 
-    // --- Student Profile ---
-    final studentProfileRemote = StudentProfileRemoteDataSourceImpl(httpClient, tokenManager: tokenManager);
-    final studentProfileRepo = StudentProfileRepositoryImpl(studentProfileRemote);
+    // --- Unified Profile ---
+    final profileRemote = ProfileRemoteDataSourceImpl(client: httpClient, tokenManager: tokenManager);
+    final profileRepo = ProfileRepositoryImpl(remoteDataSource: profileRemote);
+
+    // --- Sellers ---
+    final sellersRemote = SellersRemoteDataSourceImpl(httpClient, tokenManager: tokenManager);
+    final sellersRepo = SellersRepositoryImpl(sellersRemote);
+
+    // --- Slider ---
+    final sliderRemote = SliderRemoteDataSourceImpl(client: httpClient);
+    final sliderRepo = SliderRepositoryImpl(remoteDataSource: sliderRemote);
+
+    // --- Support ---
+    final supportRemote = SupportRemoteDataSourceImpl(httpClient, tokenManager: tokenManager);
+    final supportRepo = SupportRepositoryImpl(supportRemote);
 
     return [
       ChangeNotifierProvider<AuthProvider>(
@@ -194,6 +232,13 @@ class InjectionContainer {
           tokenManager: tokenManager,
         ),
       ),
+      ChangeNotifierProvider<CheckoutProvider>(
+        create: (_) => CheckoutProvider(
+          getMethods: GetPaymentMethods(checkoutRepo),
+          complete: CompleteCheckout(checkoutRepo),
+          tokenManager: tokenManager,
+        ),
+      ),
       ChangeNotifierProvider<WishlistProvider>(
         create: (_) => WishlistProvider(
           getMyWishlist: GetMyWishlist(wishlistRepo),
@@ -208,11 +253,27 @@ class InjectionContainer {
           tokenManager: tokenManager,
         ),
       ),
-      ChangeNotifierProvider<StudentProfileProvider>(
-        create: (_) => StudentProfileProvider(
-          getProfile: GetStudentProfile(studentProfileRepo),
-          updateProfile: UpdateStudentProfile(studentProfileRepo),
-          tokenManager: tokenManager,
+      ChangeNotifierProvider<ProfileProvider>(
+        create: (_) => ProfileProvider(
+          getMyProfile: GetMyProfile(profileRepo),
+          updateMyProfileUseCase: UpdateMyProfile(profileRepo),
+        ),
+      ),
+      ChangeNotifierProvider<SellersProvider>(
+        create: (_) => SellersProvider(
+          getAllSellers: GetAllSellers(sellersRepo),
+        ),
+      ),
+      ChangeNotifierProvider<SliderProvider>(
+        create: (_) => SliderProvider(
+          getActiveSliders: GetActiveSliders(sliderRepo),
+        ),
+      ),
+      ChangeNotifierProvider<SupportProvider>(
+        create: (_) => SupportProvider(
+          sendSupportMessage: SendSupportMessage(supportRepo),
+          getAllSupportMessages: GetAllSupportMessages(supportRepo),
+          deleteSupportMessage: DeleteSupportMessage(supportRepo),
         ),
       ),
     ];

@@ -1,11 +1,11 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
+import 'package:jwt_decoder/jwt_decoder.dart';
 
 class TokenManager {
   final _storage = const FlutterSecureStorage();
 
   Future<void> saveAccessToken(String token) async {
-    // Normalize token: some APIs return "Bearer <token>", store only the raw JWT
     var normalized = token.trim();
     if (normalized.toLowerCase().startsWith('bearer ')) {
       normalized = normalized.substring(7).trim();
@@ -25,107 +25,134 @@ class TokenManager {
     return await _storage.read(key: 'refreshToken');
   }
 
-  /// Returns true if there is an access token and it is not expired (if token contains an 'exp' claim).
+  /// Returns true if there is an access token and it is not expired.
   Future<bool> hasValidAccessToken() async {
     final token = await getAccessToken();
-    if (token == null) return false;
+    if (token == null || token.isEmpty) return false;
     try {
-      final parts = token.split('.');
-      if (parts.length < 2) return true; // cannot determine expiry -> assume valid
-      final payload = parts[1];
-      var normalized = base64Url.normalize(payload);
-      final decoded = utf8.decode(base64Url.decode(normalized));
-      final dynamic parsed = jsonDecode(decoded);
-      if (parsed is Map<String, dynamic>) {
-        final json = parsed;
-        if (json.containsKey('exp')) {
-          final expVal = json['exp'];
-          int? exp;
-          if (expVal is int) exp = expVal;
-          if (expVal is String) exp = int.tryParse(expVal);
-          if (exp != null) {
-            final expiry = DateTime.fromMillisecondsSinceEpoch(exp * 1000);
-            return DateTime.now().isBefore(expiry);
-          }
-        }
-      }
-      return true;
+      return !JwtDecoder.isExpired(token);
     } catch (_) {
+      // If we can't decode it or if it doesn't have an expiry, assume valid for fallback
       return true;
     }
   }
 
   /// Attempts to decode the stored JWT access token and extract a user id.
-  /// It looks for common claim names: 'idUser', 'userId', 'sub', 'id'.
   Future<int?> getUserIdFromAccessToken() async {
     final token = await getAccessToken();
-    if (token == null) return null;
+    if (token == null || token.isEmpty) return null;
     try {
-      final parts = token.split('.');
-      if (parts.length < 2) return null;
-      final payload = parts[1];
-      // base64 normalize
-      var normalized = base64Url.normalize(payload);
-      final decoded = utf8.decode(base64Url.decode(normalized));
-      final dynamic parsed = jsonDecode(decoded);
-      if (parsed is Map<String, dynamic>) {
-        final Map<String, dynamic> json = parsed;
-        final candidates = ['idUser', 'userId', 'sub', 'id', 'IdUser', 'user_id'];
-        for (final k in candidates) {
-          if (json.containsKey(k)) {
-            final val = json[k];
-            if (val is int) return val;
-            if (val is String) return int.tryParse(val);
-          }
-        }
-        // Some tokens nest the user object inside a 'user' or 'data' key
-        final nestedKeys = ['user', 'data', 'payload'];
-        for (final nk in nestedKeys) {
-          if (json.containsKey(nk) && json[nk] is Map<String, dynamic>) {
-            final inner = json[nk] as Map<String, dynamic>;
-            for (final k in candidates) {
-              if (inner.containsKey(k)) {
-                final val = inner[k];
-                if (val is int) return val;
-                if (val is String) return int.tryParse(val);
-              }
-            }
-          }
-        }
-      }
-      return null;
+      return TokenManager.parseUserIdFromToken(token);
     } catch (_) {
       return null;
     }
   }
 
   /// Attempts to decode the stored JWT and extract the role id.
-  /// Looks for common claim names: 'roleId', 'role_id', 'role', 'RoleId'.
   Future<int?> getRoleIdFromAccessToken() async {
     final token = await getAccessToken();
-    if (token == null) return null;
+    if (token == null || token.isEmpty) return null;
     try {
-      final parts = token.split('.');
-      if (parts.length < 2) return null;
-      final payload = parts[1];
-      var normalized = base64Url.normalize(payload);
-      final decoded = utf8.decode(base64Url.decode(normalized));
-      final dynamic parsed = jsonDecode(decoded);
-      if (parsed is Map<String, dynamic>) {
-        final Map<String, dynamic> json = parsed;
-        final candidates = ['roleId', 'role_id', 'RoleId', 'role'];
-        for (final k in candidates) {
-          if (json.containsKey(k)) {
-            final val = json[k];
-            if (val is int) return val;
-            if (val is String) return int.tryParse(val);
-          }
-        }
-      }
-      return null;
+      return TokenManager.parseRoleIdFromToken(token);
     } catch (_) {
       return null;
     }
+  }
+
+  /// Static helper to parse a JWT string and extract a user id.
+  /// Useful for testing without FlutterSecureStorage.
+  static int? parseUserIdFromToken(String token) {
+    try {
+      Map<String, dynamic> json;
+      try {
+        json = JwtDecoder.decode(token);
+      } catch (_) {
+        // Fallback: manually decode the payload part (base64url)
+        final parts = token.split('.');
+        if (parts.length < 2) return null;
+        final payload = parts[1];
+        var normalized = payload.replaceAll('-', '+').replaceAll('_', '/');
+        while (normalized.length % 4 != 0) normalized += '=';
+        final decoded = utf8.decode(base64.decode(normalized));
+        final parsed = jsonDecode(decoded);
+        if (parsed is Map<String, dynamic>) {
+          json = parsed;
+        } else {
+          return null;
+        }
+      }
+
+      final candidates = [
+        'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier',
+        'idUser', 'userId', 'sub', 'id', 'IdUser', 'user_id', 'NameIdentifier', 'uid'
+      ];
+      for (final k in candidates) {
+        if (json.containsKey(k)) {
+          final val = json[k];
+          if (val is int) return val;
+          if (val is String) return int.tryParse(val);
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Static helper to parse a JWT string and extract a canonical role id.
+  /// Maps common role names to numeric ids (seller:1, student/user:2, admin:3).
+  static int? parseRoleIdFromToken(String token) {
+    try {
+      Map<String, dynamic> json;
+      try {
+        json = JwtDecoder.decode(token);
+      } catch (_) {
+        final parts = token.split('.');
+        if (parts.length < 2) return null;
+        final payload = parts[1];
+        var normalized = payload.replaceAll('-', '+').replaceAll('_', '/');
+        while (normalized.length % 4 != 0) normalized += '=';
+        final decoded = utf8.decode(base64.decode(normalized));
+        final parsed = jsonDecode(decoded);
+        if (parsed is Map<String, dynamic>) {
+          json = parsed;
+        } else {
+          return null;
+        }
+      }
+
+      final candidates = [
+        // .NET Identity ClaimTypes.Role
+        'http://schemas.microsoft.com/ws/2008/06/identity/claims/role',
+        'roleId', 'role_id', 'RoleId', 'Role'
+      ];
+
+      for (final k in candidates) {
+        if (json.containsKey(k)) {
+          final val = json[k];
+          if (val is int) return val;
+          if (val is String) {
+            // Could be a number parsed to string "1", "2", "3"
+            final parsedNum = int.tryParse(val);
+            if (parsedNum != null) return parsedNum;
+            // Otherwise, mapping common role names to ints (case-insensitive):
+            final strVal = val.toLowerCase();
+            if (strVal == 'seller') return 1;
+            if (strVal == 'student' || strVal == 'user') return 2;
+            if (strVal == 'admin' || strVal == 'administrator') return 3;
+          }
+          if (val is List && val.isNotEmpty) {
+            final first = val.first;
+            if (first is String) {
+              final strVal = first.toLowerCase();
+              if (strVal == 'seller') return 1;
+              if (strVal == 'student' || strVal == 'user') return 2;
+              if (strVal == 'admin' || strVal == 'administrator') return 3;
+            }
+            if (first is int) return first;
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 
   Future<void> deleteAccessToken() async {

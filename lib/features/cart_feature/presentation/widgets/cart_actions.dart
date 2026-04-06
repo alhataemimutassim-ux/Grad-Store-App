@@ -30,11 +30,19 @@ class CartActions extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
           ),
           child: InkWell(
-            onTap: () {
-              if (item.quantity > 1) {
-                cartProvider.changeQuantity(item.id, item.quantity - 1);
-              } else {
-                cartProvider.remove(item.id);
+            onTap: () async {
+              try {
+                if (item.quantity > 1) {
+                  await cartProvider.changeQuantity(item.id, item.quantity - 1);
+                } else {
+                  await cartProvider.remove(item.id);
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('حدث خطأ أثناء تحديث الكمية')),
+                  );
+                }
               }
             },
             borderRadius: BorderRadius.circular(4),
@@ -54,7 +62,17 @@ class CartActions extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
           ),
           child: InkWell(
-            onTap: () => cartProvider.changeQuantity(item.id, item.quantity + 1),
+            onTap: () async {
+              try {
+                await cartProvider.changeQuantity(item.id, item.quantity + 1);
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('حدث خطأ أثناء تحديث الكمية')),
+                  );
+                }
+              }
+            },
             borderRadius: BorderRadius.circular(4),
             child: Icon(Icons.add, size: 16, color: appColors.white),
           ),

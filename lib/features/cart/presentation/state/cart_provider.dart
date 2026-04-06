@@ -50,9 +50,12 @@ class CartProvider with ChangeNotifier {
     return sum;
   }
 
-  Future<void> fetchAll() async {
-    _status = CartStatus.loading;
-    notifyListeners();
+  Future<void> fetchAll({bool silent = false}) async {
+    if (!silent || _items.isEmpty) {
+      _status = CartStatus.loading;
+      notifyListeners();
+    }
+    
     try {
       _items = await getAll.execute();
       _status = CartStatus.loaded;
@@ -68,7 +71,7 @@ class CartProvider with ChangeNotifier {
   Future<void> addToCart(int productId, {int quantity = 1}) async {
     try {
       await add.execute(productId, quantity);
-      await fetchAll();
+      await fetchAll(silent: true);
     } catch (e) {
       throw Exception(e.toString());
     }
@@ -78,7 +81,7 @@ class CartProvider with ChangeNotifier {
     try {
       final item = _items.firstWhere((i) => i.id == cartItemId);
       await update.execute(cartItemId, item.productId, newQty);
-      await fetchAll();
+      await fetchAll(silent: true);
     } catch (e) {
       throw Exception(e.toString());
     }
@@ -87,7 +90,19 @@ class CartProvider with ChangeNotifier {
   Future<void> remove(int cartItemId) async {
     try {
       await delete.execute(cartItemId);
-      await fetchAll();
+      await fetchAll(silent: true);
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
+  Future<void> clearCart() async {
+    try {
+      for (var item in _items) {
+        await delete.execute(item.id);
+      }
+      _items.clear();
+      notifyListeners();
     } catch (e) {
       throw Exception(e.toString());
     }

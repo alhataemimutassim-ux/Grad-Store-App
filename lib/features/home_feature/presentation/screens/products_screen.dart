@@ -18,9 +18,16 @@ import 'package:grad_store_app/features/products/presentation/state/products_pro
 import 'package:grad_store_app/features/cart/presentation/state/cart_provider.dart';
 import 'package:grad_store_app/core/constants/api_constants.dart';
 import 'product_details_screen.dart';
+import 'package:grad_store_app/core/utils/auth_guard.dart';
+
+import 'search_screen.dart';
+
+enum ProductSortStrategy { latest, topRated, topSelling }
 
 class ProductsScreen extends StatelessWidget {
-  const ProductsScreen({super.key});
+  final ProductSortStrategy sortStrategy;
+
+  const ProductsScreen({super.key, this.sortStrategy = ProductSortStrategy.latest});
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +42,18 @@ class ProductsScreen extends StatelessWidget {
               left: Dimens.largePadding,
               right: Dimens.largePadding,
             ),
-            child: AppSearchBar(),
+            child: Hero(
+              tag: 'search_bar_hero',
+              child: Material(
+                type: MaterialType.transparency,
+                child: AppSearchBar(
+                  readOnly: true,
+                  onTap: () {
+                    appPush(context, const SearchScreen());
+                  },
+                ),
+              ),
+            ),
           ),
         ),
         height: 128,
@@ -94,6 +112,13 @@ class ProductsScreen extends StatelessWidget {
                 } else if (provider.items.isEmpty) {
                   return const Center(child: Text('لا توجد منتجات.'));
                 }
+                var items = List.of(provider.items);
+                
+                if (sortStrategy == ProductSortStrategy.topRated) {
+                  items.sort((a, b) => (b.averageRating ?? 0).compareTo(a.averageRating ?? 0));
+                } else if (sortStrategy == ProductSortStrategy.topSelling) {
+                  items.sort((a, b) => (b.reviewsCount ?? 0).compareTo(a.reviewsCount ?? 0));
+                }
 
                 return GridView.builder(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -103,9 +128,9 @@ class ProductsScreen extends StatelessWidget {
                     mainAxisExtent: 210,
                   ),
                   shrinkWrap: true,
-                  itemCount: provider.items.length,
+                  itemCount: items.length,
                   itemBuilder: (final context, final index) {
-                    final item = provider.items[index];
+                    final item = items[index];
                     return GestureDetector(
                       onTap: () {
                          appPush(context, ProductDetailsScreen(productId: item.id));
@@ -172,10 +197,22 @@ class ProductsScreen extends StatelessWidget {
                                         height: 30,
                                         child: AppIconButton(
                                           onPressed: () {
-                                            context.read<CartProvider>().addToCart(item.id, quantity: 1);
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(content: Text("${item.name} تم إضافته للسلة")),
-                                            );
+                                            AuthGuard.checkAuth(context, onAuthenticated: () async {
+                                              try {
+                                                await context.read<CartProvider>().addToCart(item.id, quantity: 1);
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(content: Text("${item.name} تم إضافته للسلة")),
+                                                  );
+                                                }
+                                              } catch (e) {
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(content: Text('حدث خطأ أثناء الإضافة للسلة')),
+                                                  );
+                                                }
+                                              }
+                                            });
                                           },
                                           iconPath: Assets.icons.shoppingCart,
                                           backgroundColor: appColors.primary,

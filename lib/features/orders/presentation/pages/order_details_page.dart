@@ -1,314 +1,407 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-// production: no debug-only imports
-import '../../../products/presentation/state/products_provider.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/theme/theme.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../orders/domain/entities/order.dart';
+import '../state/orders_provider.dart';
 
-class OrderDetailsPage extends StatelessWidget {
+class OrderDetailsPage extends StatefulWidget {
   final Order order;
   const OrderDetailsPage({super.key, required this.order});
 
   @override
+  State<OrderDetailsPage> createState() => _OrderDetailsPageState();
+}
+
+class _OrderDetailsPageState extends State<OrderDetailsPage> {
+  late Order currentOrder;
+
+  @override
+  void initState() {
+    super.initState();
+    currentOrder = widget.order;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final appColors = context.theme.appColors;
+    final typography = context.theme.appTypography;
+
+    // تحديث الطلب محلياً في حالة تغييره (مثل الإلغاء)
+    final prov = Provider.of<OrdersProvider>(context);
+    final idx = prov.orders.indexWhere((o) => o.id == currentOrder.id);
+    if (idx != -1) {
+      currentOrder = prov.orders[idx];
+    }
+
+    final isCancelable = currentOrder.statusName.trim() == 'قيد الانتظار' || currentOrder.statusName.trim() == 'قيد المعالجة' || currentOrder.statusName.trim() == 'قيد الموافقة';
+
     return Scaffold(
+      backgroundColor: context.theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('تفاصيل الطلب #${order.id}'),
+        title: Text(
+          'تفاصيل الطلب',
+          style: typography.bodyLarge.copyWith(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        backgroundColor: context.theme.scaffoldBackgroundColor,
         elevation: 0,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-  foregroundColor: Theme.of(context).colorScheme.onSurface,
+        iconTheme: IconThemeData(color: appColors.black),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Summary card
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))],
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Hero(
-                    tag: 'order-${order.id}',
-                    child: CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(30),
-                      child: Text('#${order.id}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('طلب #${order.id}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 6),
-                        Text('التاريخ: ${_formatDate(order.orderDate)}', style: const TextStyle(color: Colors.grey)),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(color: _statusColor(order.statusName, context), borderRadius: BorderRadius.circular(20)),
-                              child: Text(order.statusName, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                            ),
-                            const SizedBox(width: 8),
-                            Text('${order.totalPrice.toStringAsFixed(2)} ج.م', style: const TextStyle(fontWeight: FontWeight.w700)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  )
-                ],
-              ),
+            // بطاقة ملخص الطلب
+            _buildOrderSummaryCard(context, appColors, typography),
+            const SizedBox(height: 24),
+
+            // تفاصيل الدفع والشحن
+            _buildInfoRow(appColors, typography),
+            const SizedBox(height: 24),
+
+            // عناصر الطلب
+            Text(
+              'المنتجات (${currentOrder.items.length})',
+              style: typography.bodyLarge.copyWith(fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 12),
+            ...currentOrder.items.map((item) => _buildOrderItem(context, item, appColors, typography)),
 
-            const SizedBox(height: 18),
+            const SizedBox(height: 24),
 
-            // Shipping / Payment placeholders
-            Row(children: [
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-                  Text('طريقة الشحن', style: TextStyle(fontWeight: FontWeight.w600)),
-                  SizedBox(height: 6),
-                  Text('الشحن العادي'),
-                ]),
+            // ملخص الفاتورة
+            _buildReceiptCard(context, appColors, typography),
+
+            const SizedBox(height: 32),
+
+            // أزرار الإجراءات
+            if (isCancelable) ...[
+              AppButton(
+                title: 'إلغاء الطلب',
+                color: appColors.error,
+                onPressed: () => _showCancelConfirmation(context, prov),
               ),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-                  Text('طريقة الدفع', style: TextStyle(fontWeight: FontWeight.w600)),
-                  SizedBox(height: 6),
-                  Text('الدفع عند الاستلام'),
-                ]),
-              ),
-            ]),
-
-            const SizedBox(height: 18),
-
-            const Text('العناصر', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-
-            // Items list
-              ...order.items.map((it) {
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(10)),
-                  child: ListTile(
-                    leading: it.productImage != null && it.productImage!.isNotEmpty
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: SizedBox(
-                              width: 56,
-                              height: 56,
-                              child: FutureBuilder<List<dynamic>>(
-                                future: Future.wait([
-                                  Provider.of(context, listen: false).tokenManager.getAccessToken(),
-                                  _fetchProductImageStrings(context, it.productId, it.productImage),
-                                ]),
-                                builder: (ctx, snap) {
-                                  if (snap.connectionState == ConnectionState.waiting) {
-                                    return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-                                  }
-                                  final token = (snap.data != null && snap.data!.isNotEmpty) ? snap.data![0] as String? : null;
-                                  final imgs = (snap.data != null && snap.data!.length > 1) ? (snap.data![1] as List<String>) : <String>[];
-
-                                  // choose first available image from product images, otherwise fall back to order item image
-                                  final selected = imgs.isNotEmpty ? imgs.first : (it.productImage ?? '');
-                                  final candidates = selected.isNotEmpty ? _imageCandidates(selected) : <String>[];
-                                  // production: do not print debug information here
-
-                                  final url = candidates.isNotEmpty ? candidates.first : '';
-
-                                  if (url.isEmpty) {
-                                    // no candidate -> show placeholder avatar
-                                    return Container(
-                                      width: 56,
-                                      height: 56,
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context).colorScheme.secondary.withAlpha(30),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Center(child: Text(it.productName.isNotEmpty ? it.productName[0] : '?')),
-                                    );
-                                  }
-
-                                  final networkImage = NetworkImage(url, headers: token == null ? null : {'Authorization': 'Bearer $token'});
-
-                                  // Use Image with loadingBuilder & errorBuilder for graceful UX
-                                  return GestureDetector(
-                                    onTap: () {
-                                      // open full-screen preview if desired
-                                      Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
-                                        appBar: AppBar(title: Text(it.productName)),
-                                        body: Center(child: Image(image: networkImage, fit: BoxFit.contain)),
-                                      )));
-                                    },
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: SizedBox(
-                                        width: 56,
-                                        height: 56,
-                                        child: Image(
-                                          image: networkImage,
-                                          width: 56,
-                                          height: 56,
-                                          fit: BoxFit.cover,
-                                          loadingBuilder: (ctx, child, loadingProgress) {
-                                            if (loadingProgress == null) return child;
-                                            return const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)));
-                                          },
-                                          errorBuilder: (ctx, error, stack) {
-                                            return Container(
-                                              color: Theme.of(context).colorScheme.secondary.withAlpha(30),
-                                              alignment: Alignment.center,
-                                              child: Text(it.productName.isNotEmpty ? it.productName[0] : '?'),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          )
-                        : CircleAvatar(backgroundColor: Theme.of(context).colorScheme.secondary.withAlpha(30), child: Text(it.productName.isNotEmpty ? it.productName[0] : '?')),
-                    title: Text(it.productName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('بائع: ${it.sellerName ?? '-'}'),
-                        // (production) do not show raw image path in subtitle
-                      ],
-                    ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text('${it.quantity} × ${it.unitPrice.toStringAsFixed(2)} ج.م'),
-                        const SizedBox(height: 6),
-                        Text('${it.total.toStringAsFixed(2)} ج.م', style: const TextStyle(fontWeight: FontWeight.w700)),
-                      ],
-                    ),
+              const SizedBox(height: 12),
+            ],
+            AppButton(
+              title: 'تتبع الطلب',
+              color: appColors.primary,
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('سيتم توفير ميزة التتبع قريباً'),
+                    backgroundColor: appColors.primary,
                   ),
                 );
-              }),
-
-            const SizedBox(height: 12),
-
-            // Totals breakdown
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(12)),
-              child: Column(
-                children: [
-                  _totalsRow('المجموع', '${order.totalPrice.toStringAsFixed(2)} ج.م'),
-                  const SizedBox(height: 6),
-                  _totalsRow('شحن', '0.00 ج.م'),
-                  const Divider(),
-                  _totalsRow('الإجمالي', '${order.totalPrice.toStringAsFixed(2)} ج.م', emphasize: true),
-                ],
-              ),
+              },
             ),
-
-            const SizedBox(height: 18),
-
-            // Action buttons
-            Row(children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ رقم الطلب')));
-                  },
-                  child: const Text('نسخ رقم الطلب'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('وظيفة تتبع الطلب (تجريبية)')));
-                  },
-                  child: const Text('تتبع الطلب'),
-                ),
-              ),
-            ])
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  String _formatDate(DateTime dt) {
-    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+  Widget _buildOrderSummaryCard(BuildContext context, dynamic appColors, dynamic typography) {
+    final statusColor = _getStatusColor(currentOrder.statusName.trim(), appColors);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: appColors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: appColors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.shopping_bag_rounded,
+              color: statusColor,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'طلب رقم #${currentOrder.id}',
+                  style: typography.bodyLarge.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatDate(currentOrder.orderDate),
+                  style: typography.labelMedium.copyWith(color: appColors.gray4),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    currentOrder.statusName,
+                    style: typography.labelMedium.copyWith(
+                      color: statusColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  Color _statusColor(String status, BuildContext context) {
-    final lc = status.toLowerCase();
-    if (lc.contains('pending') || lc.contains('قيد')) return Colors.orange;
-    if (lc.contains('shipped') || lc.contains('شحن')) return Colors.blue;
-    if (lc.contains('delivered') || lc.contains('تم')) return Colors.green;
-    if (lc.contains('cancel') || lc.contains('ملغى')) return Colors.red;
-    return Theme.of(context).colorScheme.primary;
-  }
-
-  Widget _totalsRow(String label, String value, {bool emphasize = false}) {
+  Widget _buildInfoRow(dynamic appColors, dynamic typography) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(fontWeight: emphasize ? FontWeight.w700 : FontWeight.w500)),
-        Text(value, style: TextStyle(fontWeight: emphasize ? FontWeight.w800 : FontWeight.w500)),
+        Expanded(
+          child: _buildInfoItem(
+            appColors,
+            typography,
+            icon: Icons.local_shipping_outlined,
+            title: 'الشحن',
+            subtitle: 'توصيل عادي',
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildInfoItem(
+            appColors,
+            typography,
+            icon: Icons.payment_outlined,
+            title: 'الدفع',
+            subtitle: 'الدفع عند الاستلام',
+          ),
+        ),
       ],
     );
   }
 
-  // image candidate resolution: try several URL variants (host + path, uploads, storage, raw)
-
-  List<String> _imageCandidates(String path) {
-    final trimmed = path.trim();
-    final List<String> candidates = [];
-    if (trimmed.toLowerCase().startsWith('http')) {
-      candidates.add(trimmed);
-      return candidates;
-    }
-
-    // derive base host without the trailing /api if present
-    var host = ApiConstants.baseUrl;
-    if (host.endsWith('/api')) host = host.substring(0, host.length - 4);
-
-    if (trimmed.startsWith('/')) {
-      candidates.add('$host$trimmed');
-      candidates.add('$host/uploads$trimmed');
-      candidates.add('$host/storage$trimmed');
-    } else {
-      candidates.add('$host/$trimmed');
-      candidates.add('$host/uploads/$trimmed');
-      candidates.add('$host/storage/$trimmed');
-    }
-
-    // include raw trimmed (in case server returns protocol-relative URLs or other forms)
-    candidates.add(trimmed);
-    return candidates;
+  Widget _buildInfoItem(dynamic appColors, dynamic typography, {required IconData icon, required String title, required String subtitle}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: appColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: appColors.gray2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: appColors.primary, size: 24),
+          const SizedBox(height: 12),
+          Text(title, style: typography.labelMedium.copyWith(color: appColors.gray4)),
+          const SizedBox(height: 4),
+          Text(subtitle, style: typography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
   }
 
-  Future<List<String>> _fetchProductImageStrings(BuildContext context, int productId, String? fallback) async {
-    try {
-      final prov = Provider.of<ProductsProvider>(context, listen: false);
-      final p = await prov.fetchById(productId);
-      final main = p?.mainImage;
-      if (main != null && main.isNotEmpty) return [main];
-    } catch (e) {
-      // ignore fetch errors and fall back
-    }
-    // fallback to provided order item image if any
-    if (fallback != null && fallback.isNotEmpty) return [fallback];
-    return <String>[];
+  Widget _buildOrderItem(BuildContext context, dynamic item, dynamic appColors, dynamic typography) {
+    final imageUrl = item.productImage != null && item.productImage!.isNotEmpty
+        ? (item.productImage!.startsWith('http')
+            ? item.productImage!
+            : '${ApiConstants.imageBaseUrl}${item.productImage}')
+        : null;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: appColors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: appColors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              color: appColors.gray2,
+              borderRadius: BorderRadius.circular(12),
+              image: imageUrl != null
+                  ? DecorationImage(
+                      image: NetworkImage(imageUrl),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: imageUrl == null
+                ? Icon(Icons.image_not_supported, color: appColors.gray4)
+                : null,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.productName,
+                  style: typography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'متجر: ${item.sellerName ?? "غير معروف"}',
+                  style: typography.labelMedium.copyWith(color: appColors.gray4),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${item.quantity} x ${item.unitPrice.toStringAsFixed(2)} ر.س',
+                      style: typography.labelMedium.copyWith(color: appColors.gray4),
+                    ),
+                    Text(
+                      '${item.total.toStringAsFixed(2)} ر.س',
+                      style: typography.bodyMedium.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: appColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  // helper removed: no longer needed in production UI
+  Widget _buildReceiptCard(BuildContext context, dynamic appColors, dynamic typography) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: appColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: appColors.primary.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: appColors.primary.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'الدفع',
+            style: typography.bodyLarge.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          _buildReceiptRow('المجموع الفرعي', '${currentOrder.totalPrice.toStringAsFixed(2)} ر.س', typography, appColors),
+          const SizedBox(height: 12),
+          _buildReceiptRow('تكلفة الشحن', '0.00 ر.س', typography, appColors),
+          const SizedBox(height: 12),
+          Divider(color: appColors.gray2),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'الإجمالي',
+                style: typography.bodyLarge.copyWith(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                '${currentOrder.totalPrice.toStringAsFixed(2)} ر.س',
+                style: typography.titleLarge.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: appColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReceiptRow(String title, String value, dynamic typography, dynamic appColors) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(title, style: typography.bodyMedium.copyWith(color: appColors.gray4)),
+        Text(value, style: typography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+      ],
+    );
+  }
+
+  void _showCancelConfirmation(BuildContext context, OrdersProvider prov) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('إلغاء الطلب'),
+        content: const Text('هل أنت متأكد أنك تريد إلغاء هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('تراجع', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              prov.cancelOrder(currentOrder.id);
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('تم إلغاء الطلب بنجاح'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            },
+            child: const Text('نعم، إلغاء', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime dt) {
+    return '${dt.day.toString().padLeft(2, '0')} / ${dt.month.toString().padLeft(2, '0')} / ${dt.year}';
+  }
+
+  Color _getStatusColor(String status, dynamic appColors) {
+    if (status == 'تم التسليم' || status == 'مكتمل') return appColors.successLight;
+    if (status == 'ملغي') return appColors.error;
+    if (status == 'قيد الانتظار' || status == 'قيد المعالجة' || status == 'قيد الموافقة') return Colors.orange;
+    return appColors.primary;
+  }
 }

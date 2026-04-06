@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:grad_store_app/core/utils/token_manager.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/usecases/get_all_products.dart';
@@ -23,6 +24,18 @@ class ProductsProvider with ChangeNotifier {
   final ToggleActiveProduct toggleActive;
   final DeleteProduct delete;
 
+  List<Product> _items = [];
+  List<Product> get items => _items;
+
+  String _searchQuery = '';
+  String get searchQuery => _searchQuery;
+
+  List<Product> _searchResults = [];
+  List<Product> get searchResults => _searchResults;
+
+  List<String> _recentSearches = [];
+  List<String> get recentSearches => _recentSearches;
+
   ProductsProvider({
     required this.getAll,
     required this.getById,
@@ -30,17 +43,17 @@ class ProductsProvider with ChangeNotifier {
     required this.create,
     required this.update,
     required this.toggleActive,
-    required this.delete, required TokenManager tokenManager,
-  });
+    required this.delete,
+    required TokenManager tokenManager,
+  }) {
+    loadRecentSearches();
+  }
 
   ProductsStatus _status = ProductsStatus.initial;
   ProductsStatus get status => _status;
 
   String _error = '';
   String get error => _error;
-
-  List<Product> _items = [];
-  List<Product> get items => _items;
 
   Future<void> fetchAll({bool activeOnly = false}) async {
     _status = ProductsStatus.loading;
@@ -57,6 +70,54 @@ class ProductsProvider with ChangeNotifier {
 
   Future<Product?> fetchById(int id) async {
     return await getById.execute(id);
+  }
+
+  // ===== Search Logic =====
+  void searchProducts(String query) {
+    _searchQuery = query;
+    if (query.trim().isEmpty) {
+      _searchResults = [];
+    } else {
+      final lowerQuery = query.toLowerCase();
+      _searchResults = _items.where((p) {
+        return p.name.toLowerCase().contains(lowerQuery) ||
+            (p.description?.toLowerCase().contains(lowerQuery) ?? false) ||
+            (p.brand?.toLowerCase().contains(lowerQuery) ?? false) ||
+            (p.type?.toLowerCase().contains(lowerQuery) ?? false);
+      }).toList();
+    }
+    notifyListeners();
+  }
+
+  Future<void> loadRecentSearches() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _recentSearches = prefs.getStringList('recentSearches') ?? [];
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> addRecentSearch(String query) async {
+    if (query.trim().isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _recentSearches.removeWhere((q) => q.toLowerCase() == query.trim().toLowerCase());
+      _recentSearches.insert(0, query.trim());
+      if (_recentSearches.length > 5) {
+        _recentSearches = _recentSearches.sublist(0, 5);
+      }
+      await prefs.setStringList('recentSearches', _recentSearches);
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> clearRecentSearches() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('recentSearches');
+      _recentSearches = [];
+      notifyListeners();
+    } catch (_) {}
   }
 
   Future<List<Product>> fetchAdminProducts(int adminId) async {

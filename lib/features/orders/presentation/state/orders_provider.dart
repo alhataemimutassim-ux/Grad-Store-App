@@ -24,8 +24,7 @@ class OrdersProvider with ChangeNotifier {
     _status = OrdersStatus.loading;
     notifyListeners();
     try {
-      final id = 1;
-      // NOTE: `id` here is a placeholder; in real flow fetch from TokenManager or auth provider.
+      final id = await tokenManager.getUserIdFromAccessToken() ?? 0;
       final res = await getMyOrders.execute(id);
       _orders = res;
       _status = OrdersStatus.loaded;
@@ -35,4 +34,23 @@ class OrdersProvider with ChangeNotifier {
     }
     notifyListeners();
   }
+
+  Future<void> cancelOrder(int orderId) async {
+    // محاكاة الإلغاء في الواجهة محلياً ريثما يتم توفير رابط (Endpoint) رسمي للإلغاء من السيرفر
+    // البحث عن الطلب وتحديث حالته محلياً لتصبح ملغي
+    final index = _orders.indexWhere((o) => o.id == orderId);
+    if (index != -1) {
+      final oldOrder = _orders[index];
+      // إنشاء نسخة جديدة من الطلب بنفس البيانات لكن بحالة ملغي
+      _orders[index] = Order(
+        id: oldOrder.id,
+        orderDate: oldOrder.orderDate,
+        statusName: 'ملغي',
+        totalPrice: oldOrder.totalPrice,
+        items: oldOrder.items,
+      );
+      notifyListeners();
+    }
+  }
 }
+

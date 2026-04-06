@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../domain/entities/product.dart';
 import '../../../wishlist/presentation/state/wishlist_provider.dart';
 import 'package:grad_store_app/core/widgets/rounded_card.dart';
+import 'package:grad_store_app/core/utils/auth_guard.dart';
 
 class ProductCard extends StatefulWidget {
   final Product product;
@@ -58,13 +59,15 @@ class _ProductCardState extends State<ProductCard> {
                           final inWishlist = wp.isInWishlist(product.id);
                           return GestureDetector(
                             onTap: () async {
-                              final messenger = ScaffoldMessenger.of(context);
-                              try {
-                                final added = await wp.toggle(product.id);
-                                messenger.showSnackBar(SnackBar(content: Text(added ? 'تمت الإضافة للمفضلة' : 'تم الحذف من المفضلة')));
-                              } catch (e) {
-                                messenger.showSnackBar(SnackBar(content: Text('فشل العملية: ${e.toString()}')));
-                              }
+                              AuthGuard.checkAuth(context, onAuthenticated: () async {
+                                final messenger = ScaffoldMessenger.of(context);
+                                try {
+                                  final added = await wp.toggle(product.id);
+                                  messenger.showSnackBar(SnackBar(content: Text(added ? 'تمت الإضافة للمفضلة' : 'تم الحذف من المفضلة')));
+                                } catch (e) {
+                                  messenger.showSnackBar(SnackBar(content: Text('فشل العملية: ${e.toString()}')));
+                                }
+                              });
                             },
                             child: CircleAvatar(
                               radius: 18,

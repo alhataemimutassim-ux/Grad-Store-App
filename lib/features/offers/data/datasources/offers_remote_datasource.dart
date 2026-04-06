@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:convert' show jsonDecode;
 import 'package:http/http.dart' as http;
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/token_manager.dart';
@@ -16,9 +16,9 @@ class OffersRemoteDataSourceImpl implements OffersRemoteDataSource {
 
   @override
   Future<List<OfferModel>> getPublicOffers() async {
-    final uri = Uri.parse('${ApiConstants.baseUrl}/offers/public');
+    // نستخدم /offers بدلاً من /offers/public لأن public يرجع قائمة فارغة
+    final uri = Uri.parse('${ApiConstants.baseUrl}/offers');
     final headers = {'Content-Type': 'application/json'};
-    // public endpoint - token not required, but include if available
     try {
       final token = tokenManager == null ? null : await tokenManager!.getAccessToken();
       if (token != null) headers['Authorization'] = 'Bearer $token';
@@ -26,16 +26,17 @@ class OffersRemoteDataSourceImpl implements OffersRemoteDataSource {
 
     final resp = await client.get(uri, headers: headers);
     if (resp.statusCode >= 200 && resp.statusCode < 300) {
-      final body = json.decode(resp.body);
+      final body = jsonDecode(resp.body);
       if (body is List) {
         return body.map((e) => OfferModel.fromJson(e as Map<String, dynamic>)).toList();
       }
-      // maybe wrapped in { data: [...] }
       if (body is Map && body['data'] is List) {
         return (body['data'] as List).map((e) => OfferModel.fromJson(e as Map<String, dynamic>)).toList();
       }
       return [];
     }
+    // إذا 401 (غير مسجل) نرجع قائمة فارغة بدلاً من رمي استثناء
+    if (resp.statusCode == 401) return [];
     throw Exception('Failed to load offers: ${resp.statusCode} ${resp.body}');
   }
 }

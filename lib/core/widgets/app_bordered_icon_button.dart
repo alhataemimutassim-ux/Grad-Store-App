@@ -21,6 +21,7 @@ class AppBorderedIconButton extends StatelessWidget {
       width: 56,
       height: 56,
       decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.3),
         border: Border.all(color: color ?? context.theme.appColors.gray2),
         borderRadius: BorderRadius.circular(100),
       ),

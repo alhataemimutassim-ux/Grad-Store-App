@@ -4,13 +4,16 @@ import 'package:grad_store_app/core/widgets/app_scaffold.dart';
 import 'package:grad_store_app/core/widgets/app_svg_viewer.dart';
 import 'package:grad_store_app/features/home_feature/presentation/widgets/tabs/cart_tab.dart';
 import 'package:grad_store_app/features/home_feature/presentation/widgets/tabs/orders_tab.dart';
-import 'package:grad_store_app/features/home_feature/presentation/widgets/tabs/profile_tab.dart ';
+import 'package:grad_store_app/features/home_feature/presentation/widgets/tabs/profile_tab.dart';
 import 'package:grad_store_app/features/home_feature/presentation/widgets/tabs/home_tab.dart';
+import 'package:grad_store_app/core/utils/app_navigator.dart';
+import 'package:grad_store_app/features/favorites_feature/presentation/favorites_page.dart';
 
 import '../../../../core/gen/assets.gen.dart';
 import '../bloc/bottom_navigation_cubit.dart';
 import '../widgets/home_app_bar.dart';
-import '../screens/add_product_page.dart';
+
+
 
 class HomeScreen extends StatelessWidget {
   final bool isVendor;
@@ -103,12 +106,37 @@ class CustomSpotLightNavigationBar extends StatelessWidget {
           children: [
             _buildNavItem(0, navIcons[0]),
             _buildNavItem(1, navIcons[1]),
-            
-            if (isVendor) 
-              GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddProductPage())),
-                child: Icon(Icons.add_circle_outline, color: Colors.grey[400], size: 30),
+
+            // ❤️ زر المفضلة المركزي البارز (FAB style)
+            GestureDetector(
+              onTap: () => appPush(context, const FavoritesPage()),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 1.0, end: 1.0),
+                duration: const Duration(milliseconds: 200),
+                builder: (ctx, scale, child) => Transform.scale(scale: scale, child: child),
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [primaryColor, primaryColor.withValues(alpha: 0.75)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryColor.withValues(alpha: 0.45),
+                        blurRadius: 14,
+                        spreadRadius: 2,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 26),
+                ),
               ),
+            ),
 
             _buildNavItem(2, navIcons[2]),
             _buildNavItem(3, navIcons[3]),

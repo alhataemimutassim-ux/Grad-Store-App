@@ -56,25 +56,19 @@ class CheckoutProvider with ChangeNotifier {
   Future<Order?> submit({required List<CartItem> items}) async {
     _status = CheckoutStatus.submitting;
     notifyListeners();
-    // Debug: show selected payment method and inputs at submit time
     try {
-      // debug info
-      // ignore: avoid_print
-      print('DEBUG: CheckoutProvider.submit selectedMethodId=$_selectedMethodId, address=$address, phone=$phone');
-      int? id = await tokenManager.getUserIdFromAccessToken();
-      id = 1;
-      if (_selectedMethodId == null) throw Exception('اختر طريقة دفع');
-      final Order created = await complete.execute(userId: id, paymentMethodId: _selectedMethodId!, address: address, phone: phone);
+      if (_selectedMethodId == null) throw Exception('يرجى اختيار طريقة دفع');
+      if (address.trim().isEmpty) throw Exception('يرجى إدخال العنوان');
+      if (phone.trim().isEmpty) throw Exception('يرجى إدخال رقم الهاتف');
+      final Order created = await complete.execute(
+        userId: 0, // السيرفر يستخدم التوكن مباشرة لتحديد المستخدم
+        paymentMethodId: _selectedMethodId!,
+        address: address,
+        phone: phone,
+      );
       _lastOrder = created;
       _status = CheckoutStatus.success;
-    } catch (e, st) {
-      // Debug: capture full error and stacktrace to diagnose mapping/parsing issues
-      try {
-        // ignore: avoid_print
-        print('DEBUG: CheckoutProvider.submit caught error: $e');
-        // ignore: avoid_print
-        print(st);
-      } catch (_) {}
+    } catch (e) {
       _error = e.toString();
       _status = CheckoutStatus.error;
       _lastOrder = null;

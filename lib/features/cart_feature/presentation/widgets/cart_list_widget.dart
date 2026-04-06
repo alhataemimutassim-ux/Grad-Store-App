@@ -90,7 +90,9 @@ class CartListWidget extends StatelessWidget {
                             ),
                           ),
                           RateWidget(
-                            rate: '5.0', // Fallback as product API may defer reviews
+                            rate: (product as dynamic).averageRating != null
+                                ? (product as dynamic).averageRating.toStringAsFixed(1)
+                                : '0.0',
                           ),
                         ],
                       ),
@@ -110,7 +112,7 @@ class CartListWidget extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  '\$ ${product.price}',
+                                  'ر.س ${product.price.toStringAsFixed(2)}',
                                   style: appTypography.bodyLarge,
                                 ),
                               ],

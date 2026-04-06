@@ -11,7 +11,14 @@ import 'package:grad_store_app/features/products/presentation/state/products_pro
 import '../screens/product_details_screen.dart';
 
 class ProductsList extends StatelessWidget {
-  const ProductsList({super.key});
+  final String title;
+  final ProductSortStrategy listStrategy;
+
+  const ProductsList({
+    super.key, 
+    this.title = 'أحــدث المنتجات', 
+    this.listStrategy = ProductSortStrategy.latest
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,8 +31,17 @@ class ProductsList extends StatelessWidget {
           );
         }
         
-        final products = provider.items;
-        if (products.isEmpty) {
+        var products = List.of(provider.items);
+
+        if (listStrategy == ProductSortStrategy.topRated) {
+          products.sort((a, b) => (b.averageRating ?? 0).compareTo(a.averageRating ?? 0));
+        } else if (listStrategy == ProductSortStrategy.topSelling) {
+          products.sort((a, b) => (b.reviewsCount ?? 0).compareTo(a.reviewsCount ?? 0));
+        }
+
+        final displayProducts = products.take(6).toList();
+
+        if (displayProducts.isEmpty) {
           return const SizedBox.shrink();
         }
 
@@ -33,19 +49,19 @@ class ProductsList extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AppTitleWidget(
-              title: 'أحــدث المنتجات',
+              title: title,
               onPressed: () {
-                appPush(context, ProductsScreen());
+                appPush(context, ProductsScreen(sortStrategy: listStrategy));
               },
             ),
             SizedBox(
               height: 100,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: products.length,
+                itemCount: displayProducts.length,
                 shrinkWrap: true,
                 itemBuilder: (final context, final index) {
-                  final p = products[index];
+                  final p = displayProducts[index];
                   return Padding(
                     padding: const EdgeInsets.only(left: Dimens.largePadding),
                     child: InkWell(

@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'package:grad_store_app/core/theme/theme.dart';
 import 'package:grad_store_app/core/utils/sized_context.dart';
-import 'package:grad_store_app/core/widgets/app_button.dart ';
+import 'package:grad_store_app/core/widgets/app_button.dart';
 import 'package:grad_store_app/core/widgets/app_read_more_text.dart';
 import 'package:grad_store_app/core/widgets/app_scaffold.dart';
 import 'package:grad_store_app/core/widgets/rate_widget.dart';
@@ -19,6 +19,7 @@ import 'package:grad_store_app/core/constants/api_constants.dart';
 
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/theme/dimens.dart';
+import '../../../../core/utils/auth_guard.dart';
 import '../widgets/product_details_app_bar.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
@@ -143,6 +144,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       ),
                       const SizedBox(height: Dimens.largePadding),
                       AppReadMoreText(product.description ?? "لا يوجد وصف للمنتج"),
+
+                      const SizedBox(height: Dimens.largePadding),
+                      
+                      // المواصفات (Specifications grid)
+                      _buildProductSpecsGrid(appTypography, appColor, product),
 
                       const Divider(height: Dimens.largePadding * 2),
 
@@ -674,6 +680,75 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     );
   }
 
+  Widget _buildProductSpecsGrid(dynamic typography, dynamic color, Product product) {
+    Map<String, Map<String, dynamic>> specs = {};
+    if (product.price > 0) specs['السعر'] = {'value': '\$${product.price.toStringAsFixed(2)}', 'icon': Icons.attach_money_rounded};
+    if (product.discount > 0) specs['الخصم'] = {'value': '%${product.discount.toStringAsFixed(0)}', 'icon': Icons.local_offer_rounded, 'color': Colors.redAccent};
+    specs['الكمية'] = {'value': '${product.qty}', 'icon': Icons.inventory_2_rounded};
+    if (product.brand != null && product.brand!.isNotEmpty) specs['الماركة'] = {'value': product.brand!, 'icon': Icons.stars_rounded};
+    if (product.type != null && product.type!.isNotEmpty) specs['النوع'] = {'value': product.type!, 'icon': Icons.category_rounded};
+    if (product.countryOfOrigin != null && product.countryOfOrigin!.isNotEmpty) specs['الصنع'] = {'value': product.countryOfOrigin!, 'icon': Icons.public_rounded};
+
+    return GridView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 3.5,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+      ),
+      itemCount: specs.length,
+      itemBuilder: (context, index) {
+        String key = specs.keys.elementAt(index);
+        var data = specs[key]!;
+        IconData icon = data['icon'];
+        String value = data['value'];
+        Color iconColor = data['color'] ?? color.primary;
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: iconColor, size: 16),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      key,
+                      style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      value,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildStickyBottomBar(dynamic appColor, dynamic appTypography, Product product) {
     return Positioned(
       bottom: 0,
@@ -686,24 +761,29 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              "${product.price.toStringAsFixed(2)} ر.س",
-              style: (appTypography.bodyLarge as TextStyle).copyWith(
-                color: Colors.white,
-                fontSize: 24.0,
-                fontWeight: FontWeight.w900,
+            Expanded(
+              child: Text(
+                "${product.price.toStringAsFixed(2)} ر.س",
+                style: (appTypography.bodyLarge as TextStyle).copyWith(
+                  color: Colors.white,
+                  fontSize: 22.0,
+                  fontWeight: FontWeight.w900,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            SizedBox(
-              width: 222.0,
+            const SizedBox(width: 12.0),
+            Flexible(
               child: AppButton(
                 title: "أضف إلى السلة",
                 onPressed: _addToCart,
                 color: Colors.white,
+                margin: EdgeInsets.zero,
                 textStyle: (appTypography.bodyLarge as TextStyle).copyWith(
                   color: appColor.primary,
                   fontWeight: FontWeight.w900,
-                  fontSize: 16.0,
+                  fontSize: 15.0,
                 ),
                 iconPath: Assets.icons.shoppingCart,
                 iconColor: appColor.primary,
@@ -743,10 +823,22 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
   void _addToCart() {
     if (_product != null) {
-      context.read<CartProvider>().addToCart(_product!.id, quantity: 1);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${_product!.name} تم الاضافة الئ السلة")),
-      );
+      AuthGuard.checkAuth(context, onAuthenticated: () async {
+        try {
+          await context.read<CartProvider>().addToCart(_product!.id, quantity: 1);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("${_product!.name} تم الاضافة الئ السلة")),
+            );
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('الرجاء تسجيل الدخول مجدداً لاستخدام السلة')),
+            );
+          }
+        }
+      });
     }
   }
 }

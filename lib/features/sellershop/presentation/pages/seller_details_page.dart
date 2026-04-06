@@ -171,7 +171,7 @@ class _SellerDetailsPageState extends State<SellerDetailsPage> {
             SizedBox(
               height: 200,
               child: FlutterMap(
-                options: MapOptions(initialCenter: LatLng(s.latitude!, s.longitude!), initialZoom: 13.0),
+                options: MapOptions(initialCameraFit: CameraFit.coordinates(coordinates: [LatLng(s.latitude!, s.longitude!)], padding: const EdgeInsets.all(50))),
                 children: [
                   TileLayer(
                     urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
