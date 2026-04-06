@@ -3,6 +3,7 @@ import '../../domain/entities/support_message.dart';
 import '../../domain/usecases/send_support_message.dart';
 import '../../domain/usecases/get_all_support_messages.dart';
 import '../../domain/usecases/delete_support_message.dart';
+import '../../../../core/utils/app_error_handler.dart';
 
 enum SupportStatus { initial, loading, success, error }
 
@@ -37,7 +38,7 @@ class SupportProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = AppErrorHandler.getMessage(e);
       _status = SupportStatus.error;
       notifyListeners();
       return false;
@@ -53,7 +54,7 @@ class SupportProvider with ChangeNotifier {
       _messages = await getAllSupportMessages.execute();
       _status = SupportStatus.success;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = AppErrorHandler.getMessage(e);
       _status = SupportStatus.error;
     }
     notifyListeners();
@@ -67,7 +68,7 @@ class SupportProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = AppErrorHandler.getMessage(e);
       notifyListeners();
       return false;
     }

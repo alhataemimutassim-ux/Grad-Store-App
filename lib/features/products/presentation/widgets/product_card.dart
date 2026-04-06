@@ -1,60 +1,72 @@
 import 'package:flutter/material.dart';
-import 'package:grad_store_app/core/widgets/animated_fade_in.dart';
 import 'package:provider/provider.dart';
-import '../../domain/entities/product.dart';
-import '../../../wishlist/presentation/state/wishlist_provider.dart';
-import 'package:grad_store_app/core/widgets/rounded_card.dart';
+
+import 'package:grad_store_app/core/theme/theme.dart';
+import 'package:grad_store_app/core/theme/dimens.dart';
+import 'package:grad_store_app/core/utils/app_navigator.dart';
+
+import 'package:grad_store_app/core/widgets/shaded_container.dart';
+import 'package:grad_store_app/core/widgets/rate_widget.dart';
+import 'package:grad_store_app/core/widgets/app_icon_buttons.dart';
+import 'package:grad_store_app/core/widgets/animated_fade_in.dart';
+import 'package:grad_store_app/core/constants/api_constants.dart';
+import 'package:grad_store_app/core/gen/assets.gen.dart';
 import 'package:grad_store_app/core/utils/auth_guard.dart';
 
-class ProductCard extends StatefulWidget {
+import 'package:grad_store_app/features/products/domain/entities/product.dart';
+import 'package:grad_store_app/features/home_feature/presentation/screens/product_details_screen.dart';
+import 'package:grad_store_app/features/cart/presentation/state/cart_provider.dart';
+import 'package:grad_store_app/features/wishlist/presentation/state/wishlist_provider.dart';
+
+class ProductCard extends StatelessWidget {
   final Product product;
   final VoidCallback? onTap;
+
   const ProductCard({super.key, required this.product, this.onTap});
 
   @override
-  State<ProductCard> createState() => _ProductCardState();
-}
-
-class _ProductCardState extends State<ProductCard> {
-  double _scale = 1.0;
-
-  void _onTapDown(TapDownDetails d) => setState(() => _scale = 0.97);
-  void _onTapUp(TapUpDetails d) => setState(() => _scale = 1.0);
-  void _onTapCancel() => setState(() => _scale = 1.0);
-
-  @override
   Widget build(BuildContext context) {
-    final product = widget.product;
-    return GestureDetector(
-      onTapDown: _onTapDown,
-      onTapUp: (d) {
-        _onTapUp(d);
-        widget.onTap?.call();
-      },
-      onTapCancel: _onTapCancel,
-      child: AnimatedScale(
-        scale: _scale,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
-        child: AnimatedFadeIn(
-          child: RoundedCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
+    final appColors = context.theme.appColors;
+    
+    return AnimatedFadeIn(
+      child: GestureDetector(
+        onTap: () {
+          if (onTap != null) {
+            onTap!();
+          } else {
+            appPush(context, ProductDetailsScreen(productId: product.id));
+          }
+        },
+        child: ShadedContainer(
+          child: Column(
+            spacing: Dimens.padding,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(Dimens.padding),
+                child: SizedBox(
+                  height: 114,
+                  width: double.infinity,
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
                       ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                        child: product.mainImage != null
-                            ? Image.network(product.mainImage!, fit: BoxFit.cover)
-                            : Container(color: Colors.grey[200], child: const Icon(Icons.image, size: 48)),
+                        borderRadius: BorderRadius.circular(Dimens.corners),
+                        child: product.mainImage != null && product.mainImage!.isNotEmpty
+                            ? Image.network(
+                                product.mainImage!.startsWith('http') 
+                                    ? product.mainImage! 
+                                    : '${ApiConstants.imageBaseUrl}${product.mainImage}',
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(color: Colors.grey[300]),
+                              )
+                            : Container(color: Colors.grey[300]),
                       ),
+                      
+                      // Favorite Icon (Optional but nice)
                       Positioned(
-                        top: 8,
-                        right: 8,
+                        top: 2,
+                        right: 2,
                         child: Consumer<WishlistProvider>(builder: (ctx, wp, ch) {
                           final inWishlist = wp.isInWishlist(product.id);
                           return GestureDetector(
@@ -63,151 +75,140 @@ class _ProductCardState extends State<ProductCard> {
                                 final messenger = ScaffoldMessenger.of(context);
                                 try {
                                   final added = await wp.toggle(product.id);
-                                  messenger.showSnackBar(SnackBar(content: Text(added ? 'تمت الإضافة للمفضلة' : 'تم الحذف من المفضلة')));
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(added ? 'تمت الإضافة للمفضلة' : 'تم الحذف من المفضلة'),
+                                    ),
+                                  );
                                 } catch (e) {
-                                  messenger.showSnackBar(SnackBar(content: Text('فشل العملية: ${e.toString()}')));
+                                  messenger.showSnackBar(
+                                    const SnackBar(content: Text('فشل العملية بسبب خطأ في الشبكة')),
+                                  );
                                 }
                               });
                             },
                             child: CircleAvatar(
-                              radius: 18,
-                                backgroundColor: Theme.of(context).colorScheme.surface.withAlpha((0.9 * 255).round()),
-                                child: Icon(inWishlist ? Icons.favorite : Icons.favorite_border, color: inWishlist ? Colors.red : Colors.grey),
+                              radius: 14,
+                              backgroundColor: Colors.white.withValues(alpha: 0.8),
+                              child: Icon(
+                                inWishlist ? Icons.favorite : Icons.favorite_border, 
+                                color: inWishlist ? Colors.red : Colors.grey,
+                                size: 16,
+                              ),
                             ),
                           );
                         }),
                       ),
-                      // discount badge (if any) - placed topLeft
+
+                      // Discount Badge
                       if (product.discount > 0)
                         Positioned(
-                          left: 8,
-                          top: 8,
+                          left: 2,
+                          top: 2,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(12)),
-                            // discount قادم من السرفر كنسبة مئوية (10 = 10٪)
-                            child: Text('-${product.discount.toStringAsFixed(0)}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent, 
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '-${product.discount.toStringAsFixed(0)}%', 
+                              style: const TextStyle(
+                                color: Colors.white, 
+                                fontWeight: FontWeight.bold, 
+                                fontSize: 10,
+                              ),
+                            ),
                           ),
                         ),
                     ],
                   ),
                 ),
-                  Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Dimens.padding,
+                ),
+                child: Column(
+                  spacing: Dimens.largePadding,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      spacing: Dimens.padding,
                       children: [
-                        // product name
-                        Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 8),
-                        // rating row (if available)
-                        Builder(builder: (ctx) {
-                          // try to read optional rating fields if present on model
-                          double? avg;
-                          int? reviewsCount;
-                          try {
-                            final p = product as dynamic;
-                            avg = (p.averageRating == null) ? null : (p.averageRating as double?);
-                            reviewsCount = (p.reviewsCount == null) ? null : (p.reviewsCount as int?);
-                          } catch (_) {
-                            avg = null;
-                            reviewsCount = null;
-                          }
-
-                          if (avg != null && avg > 0) {
-                            // Use Wrap so rating items can wrap to the next line on narrow widths
-                            return Wrap(
-                              spacing: 6,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                _StarRating(rating: avg, size: 14),
-                                // ensure numeric text doesn't overflow the available space
-                                SizedBox(
-                                  width: 36,
-                                  child: Text(avg.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                ),
-                                if (reviewsCount != null)
-                                  SizedBox(
-                                    width: 48,
-                                    child: Text('($reviewsCount)', style: const TextStyle(fontSize: 12, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                  ),
-                              ],
+                        Expanded(
+                          child: Text(
+                            product.name,
+                            style: context.theme.appTypography.titleSmall,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        Builder(
+                          builder: (ctx) {
+                            double? avg;
+                            try {
+                              final p = product as dynamic;
+                              avg = (p.averageRating == null) ? null : (p.averageRating as double?);
+                            } catch (_) {
+                              avg = null;
+                            }
+                            return RateWidget(
+                              rate: (avg != null && avg > 0)
+                                  ? avg.toStringAsFixed(1)
+                                  : '0.0',
                             );
                           }
-
-                          return const Text('لا تقييم', style: TextStyle(fontSize: 12, color: Colors.grey));
-                        }),
-                        const SizedBox(height: 8),
-                        // prices
-                        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                          // السعر بعد الخصم: discount من السرفر كنسبة مئوية
-                          Flexible(
-                            fit: FlexFit.loose,
-                            child: Text(
-                              '${(product.discount > 0 ? (product.price * (1 - product.discount / 100)) : product.price).toStringAsFixed(2)} ر.س',
-                              style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 16),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          // old price
-                          if (product.discount > 0)
-                            Flexible(
-                              fit: FlexFit.loose,
-                              child: Text(
-                                '${product.price.toStringAsFixed(2)} ر.س',
-                                style: const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.grey, fontSize: 12),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          const Spacer(),
-                          // small add-to-cart or qty indicator
-                          if (product.qty <= 0)
-                            SizedBox(
-                              width: 80,
-                              child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(12)), alignment: Alignment.center, child: const Text('غير متوفر', style: TextStyle(fontSize: 12))),
-                            )
-                          else
-                            SizedBox(
-                              width: 80,
-                              child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Theme.of(context).colorScheme.secondary.withAlpha((0.12 * 255).round()), borderRadius: BorderRadius.circular(12)), alignment: Alignment.center, child: const Text('متوفر', style: TextStyle(fontSize: 12))),
-                            )
-                        ])
+                        ),
                       ],
                     ),
-                  ),
-              ],
-            ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            '${(product.discount > 0 ? (product.price * (1 - product.discount / 100)) : product.price).toStringAsFixed(2)} ر.س',
+                            style: context.theme.appTypography.labelLarge
+                                .copyWith(fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        SizedBox(
+                          width: 30,
+                          height: 30,
+                          child: AppIconButton(
+                            onPressed: () {
+                              AuthGuard.checkAuth(context, onAuthenticated: () async {
+                                try {
+                                  await context.read<CartProvider>().addToCart(product.id, quantity: 1);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text("${product.name} تم إضافته للسلة")),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('حدث خطأ أثناء الإضافة للسلة')),
+                                    );
+                                  }
+                                }
+                              });
+                            },
+                            iconPath: Assets.icons.shoppingCart,
+                            backgroundColor: appColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
-  }
-}
-
-// Small widget to render star rating with half-star support.
-class _StarRating extends StatelessWidget {
-  final double rating; // expected 0..5
-  final double size;
-
-  const _StarRating({required this.rating, this.size = 16});
-
-  @override
-  Widget build(BuildContext context) {
-    final List<Widget> stars = List.generate(5, (i) {
-      final idx = i + 1;
-      IconData icon;
-      if (rating >= idx) {
-        icon = Icons.star;
-      } else if (rating >= idx - 0.5) {
-        icon = Icons.star_half;
-      } else {
-        icon = Icons.star_border;
-      }
-  return Icon(icon, size: size, color: Colors.amber[600]);
-    });
-    return Row(mainAxisSize: MainAxisSize.min, children: stars);
   }
 }

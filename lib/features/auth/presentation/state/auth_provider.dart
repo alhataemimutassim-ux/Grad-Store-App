@@ -7,6 +7,7 @@ import '../../../../features/auth/domain/usecases/forgot_password.dart';
 import '../../../../features/auth/domain/usecases/reset_password.dart';
 import '../../../../features/auth/domain/entities/user.dart';
 import '../../../../core/utils/token_manager.dart';
+import '../../../../core/utils/app_error_handler.dart';
 
 enum AuthStatus {
   initial,
@@ -194,12 +195,7 @@ class AuthProvider with ChangeNotifier {
 
   /// تنسيق رسائل الخطأ القادمة من السرفر أو الاستثناءات
   String _formatError(Object e) {
-    final raw = e.toString();
-    // إزالة بادئة "Exception: " إن وجدت
-    if (raw.startsWith('Exception: ')) {
-      return raw.substring('Exception: '.length);
-    }
-    return raw;
+    return AppErrorHandler.getMessage(e);
   }
 
   /// إعادة الحالة إلى initial (مفيد بعد إغلاق رسائل الخطأ)

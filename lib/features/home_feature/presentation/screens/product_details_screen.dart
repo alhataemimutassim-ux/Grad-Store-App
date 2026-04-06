@@ -7,6 +7,7 @@ import 'package:grad_store_app/core/widgets/app_button.dart';
 import 'package:grad_store_app/core/widgets/app_read_more_text.dart';
 import 'package:grad_store_app/core/widgets/app_scaffold.dart';
 import 'package:grad_store_app/core/widgets/rate_widget.dart';
+import 'package:grad_store_app/features/products/presentation/widgets/product_card.dart';
 
 
 import 'package:grad_store_app/features/products/presentation/state/products_provider.dart';
@@ -226,12 +227,16 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             return const Text("لا توجد منتجات مشابهة");
                           }
                           return SizedBox(
-                            height: 180,
+                            height: 220,
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
                               itemCount: similar.length < 5 ? similar.length : 5,
                               itemBuilder: (context, index) {
-                                return _buildSimilarProductCard(appColor, appTypography, similar[index]);
+                                return Container(
+                                  width: 160,
+                                  margin: const EdgeInsets.only(left: Dimens.padding),
+                                  child: ProductCard(product: similar[index]),
+                                );
                               },
                             ),
                           );
@@ -548,73 +553,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     );
   }
 
-  // (fontSize as double)
-  Widget _buildSimilarProductCard(dynamic color, dynamic typography, Product similarProduct) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => ProductDetailsScreen(productId: similarProduct.id)),
-        );
-      },
-      child: Container(
-        width: 130.0,
-        margin: const EdgeInsets.only(left: Dimens.padding),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(Dimens.corners),
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
-        ),
-        child: Column(
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(Dimens.corners),
-              ),
-              child: similarProduct.mainImage != null
-                  ? Image.network(
-                      similarProduct.mainImage!.startsWith('http') ? similarProduct.mainImage! : '${ApiConstants.baseUrl}${similarProduct.mainImage}',
-                      height: 90.0,
-                      width: 130.0,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], height: 90, width: 130),
-                    )
-                  : Container(
-                      height: 90.0,
-                      width: 130.0,
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.image, color: Colors.grey),
-                    ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    similarProduct.name,
-                    style: (typography.bodyMedium as TextStyle).copyWith(
-                      fontSize: 11.0,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    "${similarProduct.price.toStringAsFixed(2)} ر.س",
-                    style: (typography.bodyLarge as TextStyle).copyWith(
-                      fontSize: 12.0,
-                      color: color.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildAdditionalImageNetwork(BuildContext context, String path) {
     return GestureDetector(

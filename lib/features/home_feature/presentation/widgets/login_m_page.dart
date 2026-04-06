@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:grad_store_app/features/auth/presentation/state/auth_provider.dart';
+import 'package:flutter/services.dart';
+import 'package:grad_store_app/core/utils/app_validators.dart';
 import 'package:grad_store_app/core/widgets/app_scaffold.dart';
 import 'package:grad_store_app/core/theme/theme.dart';
 import 'package:grad_store_app/core/theme/dimens.dart';
+import 'package:grad_store_app/core/widgets/app_snackbar.dart';
 
 class LoginMPage extends StatelessWidget {
   const LoginMPage({super.key});
@@ -87,6 +90,8 @@ class _LoginMFormState extends State<LoginMForm> {
                 label: "البريد الإلكتروني",
                 icon: Icons.email_rounded,
                 colors: colors,
+                keyboardType: TextInputType.emailAddress,
+                inputFormatters: AppValidators.emailInputFormatters,
               ),
               const SizedBox(height: 18.0),
               _buildTextField(
@@ -124,21 +129,21 @@ class _LoginMFormState extends State<LoginMForm> {
                               final email = _emailController.text.trim();
                               final password = _passwordController.text;
                               if (email.isEmpty || password.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('يرجى ملء جميع الحقول')),
-                                );
+                                AppSnackBar.showWarning(context, 'يرجى ملء جميع الحقول');
                                 return;
                               }
+                              
+                              final emailError = AppValidators.validateEmail(email);
+                              if (emailError != null) {
+                                AppSnackBar.showError(context, emailError);
+                                return;
+                              }
+
                               await auth.login(email: email, password: password);
-                              if (auth.status == AuthStatus.authenticated) {
+                              if (auth.status == AuthStatus.authenticated && context.mounted) {
                                 Navigator.pushReplacementNamed(context, '/home'); // Change to vendor dashboard if created later
-                              } else if (auth.status == AuthStatus.error) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(auth.errorMessage),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
+                              } else if (auth.status == AuthStatus.error && context.mounted) {
+                                AppSnackBar.showError(context, auth.errorMessage);
                               }
                             },
                       style: ElevatedButton.styleFrom(
@@ -203,10 +208,14 @@ class _LoginMFormState extends State<LoginMForm> {
     bool obscure = false,
     VoidCallback? onToggle,
     required dynamic colors,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscure,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       style: const TextStyle(fontSize: 15.0),
       decoration: InputDecoration(
         labelText: label,

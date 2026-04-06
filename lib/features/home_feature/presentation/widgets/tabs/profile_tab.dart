@@ -2,8 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
-
 import 'package:grad_store_app/core/theme/colors.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:grad_store_app/core/theme/theme.dart';
 import 'package:grad_store_app/core/utils/check_theme_status.dart';
 import 'package:grad_store_app/core/constants/api_constants.dart';
@@ -397,6 +397,60 @@ class _ProfileTabState extends State<ProfileTab> {
       ),
     );
   }
+  Widget _buildDashboardOption(BuildContext context, UserProfile profile) {
+    if (profile.roleId != 1 && profile.roleId != 3) {
+      return const SizedBox.shrink();
+    }
+
+    final isDark = checkDarkMode(context);
+    final url = profile.roleId == 1
+        ? 'https://trindhodhod.somee.com/Seller/Dashboard'
+        : 'https://trindhodhod.somee.com/Admin/Dashboard';
+
+    return Padding(
+      padding: const EdgeInsets.only(
+          left: Dimens.largePadding, right: Dimens.largePadding, bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10, right: 4),
+            child: Text('إدارة النظام',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white70 : Colors.black87)),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey[850] : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: _settingsTile(
+              context,
+              icon: Icons.dashboard_customize_rounded,
+              iconColor: const Color(0xFF10B981),
+              label: 'لوحة التحكم',
+              onTap: () async {
+                final uri = Uri.parse(url);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Widget _buildSupportSection(BuildContext context) {
     final isDark = checkDarkMode(context);
@@ -592,6 +646,9 @@ class _ProfileTabState extends State<ProfileTab> {
                   if (profile != null) _buildRoleSection(context, profile),
 
                   const SizedBox(height: 16),
+
+                  // Dashboard (Admin & Seller only)
+                  if (profile != null) _buildDashboardOption(context, profile),
 
                   // Settings
                   _buildSettingsSection(context),

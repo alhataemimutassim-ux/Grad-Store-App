@@ -24,6 +24,7 @@ class GeneralAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
+      automaticallyImplyLeading: false,
       actions: actions,
       title: Text(title),
       leading:

@@ -90,12 +90,37 @@ class ApiClient {
         return {};
       }
     } else {
-      String errMsg = 'خطأ في السيرفر';
+      String errMsg = 'حدث خطأ في الخادم';
       try {
         if (response.body.isNotEmpty) {
           final decoded = jsonDecode(response.body);
-          if (decoded is Map && decoded.containsKey('message')) {
-            errMsg = decoded['message'].toString();
+          if (decoded is Map) {
+            final List<String> errorMessages = [];
+
+            // 1. .NET Core Validation Errors: {"errors": { "Email": ["Invalid format"] }}
+            if (decoded.containsKey('errors') && decoded['errors'] is Map) {
+              final Map<String, dynamic> errors = decoded['errors'];
+              for (final entry in errors.values) {
+                if (entry is List) {
+                  errorMessages.addAll(entry.map((e) => e.toString()));
+                } else if (entry is String) {
+                  errorMessages.add(entry);
+                }
+              }
+            }
+            
+            // 2. Default Message Key
+            if (decoded.containsKey('message') && decoded['message'] != null) {
+              errorMessages.add(decoded['message'].toString());
+            }
+
+            if (errorMessages.isNotEmpty) {
+              errMsg = errorMessages.join('\\n');
+            } else if (decoded.containsKey('title')) {
+              errMsg = decoded['title'].toString();
+            }
+          } else if (decoded is String) {
+            errMsg = decoded;
           }
         }
       } catch (_) {}

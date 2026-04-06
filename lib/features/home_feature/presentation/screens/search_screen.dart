@@ -125,9 +125,9 @@ class _SearchScreenState extends State<SearchScreen> {
             padding: const EdgeInsets.all(Dimens.padding),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              childAspectRatio: 0.75,
-              crossAxisSpacing: Dimens.padding,
-              mainAxisSpacing: Dimens.padding,
+              mainAxisExtent: 210,
+              crossAxisSpacing: Dimens.largePadding,
+              mainAxisSpacing: Dimens.largePadding,
             ),
             itemCount: results.length,
             itemBuilder: (context, index) {

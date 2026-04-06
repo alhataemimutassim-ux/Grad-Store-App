@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../state/support_provider.dart';
-
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
 
@@ -51,14 +51,7 @@ class _SupportScreenState extends State<SupportScreen> {
       setState(() => _selectedType = 0);
       _showSuccessSheet();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('خطأ: ${provider.error}'),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      AppSnackBar.showError(context, provider.error);
     }
   }
 

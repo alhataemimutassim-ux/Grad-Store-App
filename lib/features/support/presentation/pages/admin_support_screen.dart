@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../domain/entities/support_message.dart';
 import '../state/support_provider.dart';
 
@@ -52,7 +53,6 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
 
   Future<void> _confirmDelete(BuildContext context, SupportMessage msg) async {
     final provider = context.read<SupportProvider>();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -71,14 +71,15 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed == true && context.mounted) {
       final success = await provider.delete(msg.id);
-      scaffoldMessenger.showSnackBar(SnackBar(
-        content: Text(success ? 'تم الحذف بنجاح' : 'فشل الحذف'),
-        backgroundColor: success ? const Color(0xFF10B981) : Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+      if (context.mounted) {
+        if (success) {
+          AppSnackBar.showSuccess(context, 'تم الحذف بنجاح');
+        } else {
+          AppSnackBar.showError(context, 'فشل الحذف');
+        }
+      }
     }
   }
 

@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/widgets/app_scaffold.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../domain/entities/user_profile.dart';
 import '../state/profile_provider.dart';
 
@@ -158,30 +159,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final success = await provider.updateProfile(updatedProfile, imageFile: _selectedImage);
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle_rounded, color: Colors.white),
-              SizedBox(width: 8),
-              Text('تم تحديث البيانات بنجاح'),
-            ],
-          ),
-          backgroundColor: const Color(0xFF10B981),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      AppSnackBar.showSuccess(context, 'تم تحديث البيانات بنجاح');
       Navigator.pop(context);
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.error),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      AppSnackBar.showError(context, provider.error);
     }
   }
 

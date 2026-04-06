@@ -7,7 +7,10 @@ import 'package:grad_store_app/core/theme/theme.dart';
 import 'package:grad_store_app/core/utils/app_navigator.dart';
 import 'package:grad_store_app/features/offers/domain/entities/offer.dart';
 import 'package:grad_store_app/features/offers/presentation/state/offers_provider.dart';
-import 'package:grad_store_app/features/home_feature/presentation/screens/product_details_screen.dart';
+import 'package:grad_store_app/features/products/domain/entities/product.dart';
+import 'package:grad_store_app/features/products/presentation/widgets/product_card.dart';
+import 'package:grad_store_app/core/widgets/app_scaffold.dart';
+import 'package:grad_store_app/core/widgets/general_app_bar.dart';
 
 /// قسم العروض المؤقتة — بطاقات أفقية مع عداد تنازلي حي
 class FlashOffersSection extends StatefulWidget {
@@ -42,23 +45,22 @@ class _FlashOffersSectionState extends State<FlashOffersSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<OffersProvider>(
-      builder: (context, provider, _) {
-        // حالة التحميل
-        if (provider.status == OffersStatus.loading ||
-            provider.status == OffersStatus.initial) {
-          return const SizedBox(
-            height: 200,
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
+    return AppScaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: const GeneralAppBar(title: 'عروض مؤقتة', showBackIcon: true),
+      body: Consumer<OffersProvider>(
+        builder: (context, provider, _) {
+          // حالة التحميل
+          if (provider.status == OffersStatus.loading ||
+              provider.status == OffersStatus.initial) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-        // حالة خطأ — اعرض زر إعادة المحاولة
-        if (provider.status == OffersStatus.error) {
-          return Padding(
-            padding: const EdgeInsets.all(Dimens.largePadding),
-            child: Center(
+          // حالة خطأ — اعرض زر إعادة المحاولة
+          if (provider.status == OffersStatus.error) {
+            return Center(
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.wifi_off_outlined, color: Colors.grey, size: 36),
                   const SizedBox(height: 8),
@@ -70,220 +72,84 @@ class _FlashOffersSectionState extends State<FlashOffersSection> {
                   ),
                 ],
               ),
+            );
+          }
+
+          // عرض كل العروض التي لديها خصم
+          final allOffers = provider.items.where((o) => o.discount > 0).toList();
+
+          if (allOffers.isEmpty) {
+            return const Center(child: Text("لا توجد عروض حالياً"));
+          }
+
+          return GridView.builder(
+            padding: const EdgeInsets.all(Dimens.largePadding),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisExtent: 210,
+              crossAxisSpacing: Dimens.largePadding,
+              mainAxisSpacing: Dimens.largePadding,
             ),
-          );
-        }
+            itemCount: allOffers.length,
+            itemBuilder: (ctx, i) {
+              final offer = allOffers[i];
+              final endDt = offer.endDateTime;
+              final Duration? remaining = endDt?.difference(_now);
+              final isExpired = remaining == null || remaining.isNegative;
 
-        // عرض كل العروض التي لديها خصم (بغض النظر عن status)
-        final allOffers = provider.items
-            .where((o) => o.discount > 0)
-            .toList();
+              // Map Offer to Product for the unified card
+              final productMapping = Product(
+                id: offer.productId,
+                name: offer.productName,
+                price: offer.price,
+                discount: offer.discount,
+                qty: 1,
+                isActive: offer.status,
+                mainImage: offer.mainImage ?? offer.productImage,
+                averageRating: offer.averageRating,
+                reviewsCount: offer.reviewsCount,
+                categoryId: 0,
+                sellerId: 0,
+              );
 
-        // اذا لم توجد عروض اطلاقاً — اخفِ القسم بصمت
-        if (allOffers.isEmpty) return const SizedBox.shrink();
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader(context),
-            SizedBox(
-              height: 230,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: Dimens.largePadding),
-                itemCount: allOffers.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 14),
-                itemBuilder: (ctx, i) => _FlashOfferCard(
-                  offer: allOffers[i],
-                  now: _now,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildSectionHeader(BuildContext context) {
-    final colors = context.theme.appColors;
-    final typography = context.theme.appTypography;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          Dimens.largePadding, Dimens.largePadding, Dimens.largePadding, 12),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.orange.shade600, Colors.deepOrange.shade700],
-              ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('عروض سريعة', style: typography.bodyLarge.copyWith(fontWeight: FontWeight.bold)),
-              Text('الأسعار تنتهي قريباً!', style: typography.labelMedium.copyWith(color: colors.gray4)),
-            ],
-          ),
-          const Spacer(),
-          TextButton(
-            onPressed: () {},
-            child: Text('عرض الكل', style: typography.labelMedium.copyWith(color: colors.primary)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FlashOfferCard extends StatelessWidget {
-  final Offer offer;
-  final DateTime now;
-
-  const _FlashOfferCard({required this.offer, required this.now});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.theme.appColors;
-    final endDt = offer.endDateTime;
-    final Duration? remaining = endDt?.difference(now);
-    final isExpired = remaining == null || remaining.isNegative;
-
-    final imageUrl = offer.mainImage ?? offer.productImage;
-    // نستخدم imageBaseUrl (بدون /api) لأن الصور على /uploads
-    final fullImageUrl = imageUrl == null
-        ? null
-        : imageUrl.startsWith('http')
-            ? imageUrl
-            : '${ApiConstants.imageBaseUrl}$imageUrl';
-
-    final discountedPrice = offer.price * (1 - offer.discount / 100);
-
-    return GestureDetector(
-      onTap: () => appPush(context, ProductDetailsScreen(productId: offer.productId)),
-      child: Container(
-        width: 175,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // صورة المنتج مع شارة الخصم
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                  child: fullImageUrl != null
-                      ? Image.network(
-                          fullImageUrl,
-                          height: 120,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _emptyImage(),
-                        )
-                      : _emptyImage(),
-                ),
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.orange.shade600, Colors.deepOrange.shade700],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '-${offer.discount.toStringAsFixed(0)}%',
-                      style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            // تفاصيل
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              return Stack(
                 children: [
-                  Text(
-                    offer.productName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  Positioned.fill(
+                    child: ProductCard(product: productMapping),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
-                        '${discountedPrice.toStringAsFixed(0)} ر.س',
-                        style: TextStyle(
-                            color: colors.primary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        offer.price.toStringAsFixed(0),
-                        style: const TextStyle(
-                          decoration: TextDecoration.lineThrough,
-                          color: Colors.grey,
-                          fontSize: 11,
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Builder(builder: (_) {
+                      if (!isExpired && remaining != null) return _CountdownChip(remaining: remaining);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 4,
+                            )
+                          ],
                         ),
-                      ),
-                    ],
+                        child: Text(
+                          'انتهى',
+                          style: TextStyle(color: Colors.red.shade700, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      );
+                    }),
                   ),
-                  const SizedBox(height: 8),
-                  // العداد التنازلي — نستخدم Builder لضمان الـ non-null بعد التحقق
-                  Builder(builder: (_) {
-                    final r = remaining;
-                    if (!isExpired && r != null) return _CountdownChip(remaining: r);
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'انتهى العرض',
-                        style: TextStyle(color: Colors.red.shade700, fontSize: 11),
-                      ),
-                    );
-                  }),
                 ],
-              ),
-            ),
-          ],
-        ),
+              );
+            },
+          );
+        },
       ),
     );
   }
-
-  Widget _emptyImage() => Container(
-        height: 120,
-        color: Colors.grey.shade100,
-        child: const Icon(Icons.image_outlined, color: Colors.grey, size: 40),
-      );
 }
-
 class _CountdownChip extends StatelessWidget {
   final Duration remaining;
   const _CountdownChip({required this.remaining});

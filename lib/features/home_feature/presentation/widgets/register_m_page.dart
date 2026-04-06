@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
+import '../../../../core/utils/app_validators.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import 'package:grad_store_app/features/auth/presentation/state/auth_provider.dart';
 import 'package:grad_store_app/core/theme/theme.dart';
 import 'package:grad_store_app/core/widgets/app_scaffold.dart';
@@ -34,6 +37,7 @@ class _RegisterMPageState extends State<RegisterMPage> {
     final typography = context.theme.appTypography;
 
     return AppScaffold(
+      bottomNavigationBar: _buildBottomSelector(context, colors, true),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
         child: Column(
@@ -73,6 +77,7 @@ class _RegisterMPageState extends State<RegisterMPage> {
               Icons.email_outlined,
               colors,
               type: TextInputType.emailAddress,
+              inputFormatters: AppValidators.emailInputFormatters,
             ),
             const SizedBox(height: 16.0),
 
@@ -82,6 +87,7 @@ class _RegisterMPageState extends State<RegisterMPage> {
               Icons.phone_android_rounded,
               colors,
               type: TextInputType.phone,
+              inputFormatters: AppValidators.phoneInputFormatters,
             ),
             const SizedBox(height: 16.0),
             
@@ -110,9 +116,25 @@ class _RegisterMPageState extends State<RegisterMPage> {
                             final password = _passwordController.text;
 
                             if (name.isEmpty || email.isEmpty || phone.isEmpty || password.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('الرجاء ملء كافة الحقول')),
-                              );
+                              AppSnackBar.showWarning(context, 'الرجاء ملء كافة الحقول');
+                              return;
+                            }
+
+                            final emailError = AppValidators.validateEmail(email);
+                            if (emailError != null) {
+                              AppSnackBar.showError(context, emailError);
+                              return;
+                            }
+
+                            final phoneError = AppValidators.validatePhone(phone);
+                            if (phoneError != null) {
+                              AppSnackBar.showError(context, phoneError);
+                              return;
+                            }
+
+                            final passwordError = AppValidators.validatePassword(password);
+                            if (passwordError != null) {
+                              AppSnackBar.showError(context, passwordError);
                               return;
                             }
 
@@ -124,21 +146,11 @@ class _RegisterMPageState extends State<RegisterMPage> {
                               roleId: 1, // 1 for Vendor (Seller)
                             );
 
-                            if (auth.status == AuthStatus.registrationSuccess) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('تم إنشاء حساب المورد بنجاح! يرجى تسجيل الدخول.'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
+                            if (auth.status == AuthStatus.registrationSuccess && context.mounted) {
+                              AppSnackBar.showSuccess(context, 'تم إنشاء حساب المورد بنجاح! يرجى تسجيل الدخول.');
                               Navigator.pop(context); // العودة إلى شاشة الدخول
-                            } else if (auth.status == AuthStatus.error) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(auth.errorMessage),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
+                            } else if (auth.status == AuthStatus.error && context.mounted) {
+                              AppSnackBar.showError(context, auth.errorMessage);
                             }
                           },
                     style: ElevatedButton.styleFrom(
@@ -202,6 +214,7 @@ class _RegisterMPageState extends State<RegisterMPage> {
     bool readOnly = false,
     VoidCallback? onTap,
     TextInputType? type,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextField(
       controller: ctrl,
@@ -209,6 +222,7 @@ class _RegisterMPageState extends State<RegisterMPage> {
       onTap: onTap,
       obscureText: isPass && _obscurePassword,
       keyboardType: type,
+      inputFormatters: inputFormatters,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(fontSize: 13, color: Colors.grey),
@@ -236,5 +250,78 @@ class _RegisterMPageState extends State<RegisterMPage> {
       ),
     );
   }
+  Widget _buildBottomSelector(
+    BuildContext context,
+    dynamic colors,
+    bool isVendor,
+  ) {
+    return Container(
+      height: 85.0,
+      padding: const EdgeInsets.fromLTRB(24.0, 10.0, 24.0, 20.0),
+      color: Colors.white,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(14.0),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _buildTab(context, "طالب", !isVendor, '/register_a', colors),
+            ),
+            Expanded(
+              child: _buildTab(
+                context,
+                "بائع",
+                isVendor,
+                '/register_m',
+                colors,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
+  Widget _buildTab(
+    BuildContext context,
+    String title,
+    bool active,
+    String route,
+    dynamic colors,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        if (!active) {
+          Navigator.pushReplacementNamed(context, route);
+        }
+      },
+      child: Container(
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? colors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(12.0),
+          boxShadow:
+              active
+                  ? [
+                    BoxShadow(
+                      color: (colors.primary as Color).withValues(alpha: 0.3),
+                      blurRadius: 8.0,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                  : [],
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: 14.0,
+            fontWeight: active ? FontWeight.bold : FontWeight.w600,
+            color: active ? Colors.white : Colors.grey[600],
+          ),
+        ),
+      ),
+    );
+  }
 }

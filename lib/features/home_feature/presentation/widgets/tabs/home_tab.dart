@@ -27,15 +27,15 @@ class HomeTab extends StatelessWidget {
           
           // ── البانر الإعلاني (عروض خاصة) ──────────────────────
           AppTitleWidget(
-            onPressed: () => appPush(context, SpecialOffers()),
-            title: 'عروض خاصة',
+            onPressed: () => appPush(context, FlashOffersSection()),
+            title: 'عروض مؤقتة',
           ),
           BannerSliderWidget(),
 
           const SizedBox(height: 8),
 
           // ── قسم العروض المؤقتة السريعة ───────────────────────────
-          const FlashOffersSection(),
+          // const FlashOffersSection(),
 
           // ── فاصل بصري أنيق ───────────────────────────────────────
           _SectionDivider(),

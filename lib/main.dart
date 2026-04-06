@@ -9,8 +9,7 @@ import 'features/home_feature/presentation/screens/splash_screen.dart';
 import 'features/home_feature/presentation/screens/home_screen.dart';
 import 'features/home_feature/presentation/widgets/login_a_page.dart';
 import 'features/home_feature/presentation/widgets/login_m_page.dart';
-import 'features/home_feature/presentation/widgets/register_m_page.dart';
-import 'features/home_feature/presentation/widgets/register_a_page.dart' as register_a;
+import 'features/home_feature/presentation/widgets/register_a_page.dart';
 import 'features/auth/presentation/screens/forgot_password_screen.dart';
 
 import 'package:grad_store_app/core/di/injection_container.dart';
@@ -54,8 +53,9 @@ class App extends StatelessWidget {
           '/home': (context) => const HomeScreen(),
           '/login_a': (context) => const LoginaPage(),
           '/login_m': (context) => const LoginMPage(),
-          '/register': (context) => RegisterMPage(),
-          '/register_a': (context) => register_a.RegisterAPage(),
+          '/register': (context) => const RegisterAPage(),
+          '/register_a': (context) => const RegisterAPage(),
+          '/register_m': (context) => const RegisterAPage(),
           '/forgot_password': (context) => const ForgotPasswordScreen(),
           // Note: reset_password should usually be navigation via deep link with dynamic route,
           // but if we register it loosely:
